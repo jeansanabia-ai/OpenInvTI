@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#000308" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OpenInvTI" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+  <title>OpenInvTI - Inventário de TI</title>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1 id="topTitle">OpenInvTI</h1>
+        <div class="sub" id="topSub">Inventário de equipamentos de TI</div>
+      </div>
+      <div class="topbar-actions">
+        <button id="settingsBtn" class="theme-toggle-btn" aria-label="Configurações" title="Configurações da empresa">⚙️</button>
+        <button id="themeToggle" class="theme-toggle-btn" aria-label="Alternar tema" title="Alternar tema claro/escuro">🌓</button>
+        <div class="badge" id="topBadge" style="display:none">0 itens</div>
+      </div>
+    </header>
+
+
+    <!-- TELA SETUP: Configuração inicial (primeira vez) -->
+    <section class="screen active" id="screen-setup">
+      <div class="info-banner">
+        🎉 Bem-vindo ao <strong>OpenInvTI</strong>! Configure os dados da sua empresa para começar.
+        Você pode editar essas configurações depois em ⚙️ Configurações.
+      </div>
+      <div class="field">
+        <label for="cfgEmpresa">Nome da empresa *</label>
+        <input type="text" id="cfgEmpresa" placeholder="Ex.: Acme Corporation" />
+      </div>
+      <div class="field">
+        <label for="cfgTitulo">Título do inventário</label>
+        <input type="text" id="cfgTitulo" value="INVENTARIO DE EQUIPAMENTOS DE TI" />
+        <div class="hint">Aparece no topo da planilha gerada.</div>
+      </div>
+      <div class="field">
+        <label for="cfgPatRegex">Padrão do nº de patrimônio (regex)</label>
+        <input type="text" id="cfgPatRegex" placeholder="Ex.: ACME-\d{4,6}" />
+        <div class="hint">Regex para identificar automaticamente seu formato de patrimônio. Deixe vazio para usar padrões genéricos.</div>
+      </div>
+      <div class="field">
+        <label for="cfgMarcas">Marcas usadas (separadas por vírgula)</label>
+        <textarea id="cfgMarcas" rows="3" placeholder="HP, Dell, Lenovo, Apple, Samsung..."></textarea>
+        <div class="hint">Lista que aparece como sugestão no campo Marca durante o inventário.</div>
+      </div>
+      <div class="field">
+        <button type="button" class="btn btn-secondary" id="cfgDetectarPadrao">📸 Detectar padrão por foto</button>
+        <div class="hint">Tire foto de uma etiqueta exemplo da sua empresa e o app sugere automaticamente o regex.</div>
+      </div>
+      <div id="cfgPadroesSugestoes" style="display:none"></div>
+      <button class="btn btn-primary" id="cfgSalvar">✓ Salvar e começar</button>
+      <button class="btn btn-danger" id="cfgResetar" style="margin-top:14px">🗑️ Limpar tudo e recomeçar</button>
+      <div class="hint" style="text-align:center;margin-top:6px">Apaga configurações + inventários salvos. Útil para testar como usuário novo.</div>
+    </section>
+
+    <!-- TELA 1: Hero + Dashboard inicial -->
+    <section class="screen" id="screen-start">
+      <div class="hero">
+        <div class="hero-glow"></div>
+        <h2 class="hero-title">Bem-vindo ao <span class="brand">OpenInvTI</span></h2>
+        <p class="hero-sub">Inventário de TI corporativo · OCR · Open Source</p>
+      </div>
+
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-icon">📦</div>
+          <div class="dash-card-label">Sessões</div>
+          <div class="dash-card-value" id="dashSessoes">0</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">💻</div>
+          <div class="dash-card-label">Itens registrados</div>
+          <div class="dash-card-value" id="dashItens">0</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-icon">👥</div>
+          <div class="dash-card-label">Usuários</div>
+          <div class="dash-card-value" id="dashUsuarios">0</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="dataInv">Data do levantamento</label>
+        <input type="date" id="dataInv" />
+      </div>
+      <div class="field">
+        <label for="setorInv">Setor</label>
+        <input type="text" id="setorInv" placeholder="Ex.: Metrologia / Validação / Almoxarifado" />
+      </div>
+      <div class="field">
+        <label for="tituloInv">Título do inventário</label>
+        <input type="text" id="tituloInv" value="INVENTARIO DE EQUIPAMENTOS DE TI" />
+        <div class="hint">Aparece como título da planilha gerada.</div>
+      </div>
+      <button class="btn btn-primary" id="btnStart">▶ Iniciar inventário</button>
+      <button class="btn btn-secondary" id="btnResume" style="display:none">↻ Retomar inventário em andamento</button>
+    </section>
+
+    <!-- TELA 2: Lista de usuários/sessões -->
+    <section class="screen" id="screen-list">
+      <div class="section-title">Usuários registrados</div>
+      <div class="item-list" id="itemList"></div>
+      <div class="empty" id="emptyMsg">Nenhuma estação registrada ainda. Toque em <strong>+ Nova captura</strong> para iniciar.</div>
+
+      <div class="footbar">
+        <button class="btn btn-secondary" id="btnFinish" style="flex:1">✓ Finalizar</button>
+        <button class="btn btn-primary" id="btnAdd" style="flex:1.3">+ Nova captura</button>
+      </div>
+    </section>
+
+    <!-- TELA WIZARD: Captura guiada (CPU → Monitor 1 → Monitor 2 → Telefone → Ramal → Usuário) -->
+    <section class="screen" id="screen-wizard">
+      <div class="wizard-progress">
+        <div class="wizard-progress-bar"><div class="wizard-progress-fill" id="wizProgFill"></div></div>
+        <div class="wizard-progress-label" id="wizProgLabel">Passo 1 de 6</div>
+      </div>
+
+      <h2 class="wizard-step-title" id="wizStepTitle">Equipamento principal</h2>
+      <div class="wizard-step-sub" id="wizStepSub">Tire foto da etiqueta com nº de patrimônio</div>
+
+      <!-- Foto e OCR (compartilhado entre passos) -->
+      <div class="photo-section" id="wizPhotoBox">
+        <img class="photo-preview" id="wizPhoto" alt="Foto" />
+        <label class="cap-btn">
+          📷 <span id="wizCamLabel">Tirar foto da etiqueta</span>
+          <input type="file" accept="image/*" capture="environment" id="wizInput" />
+        </label>
+        <div class="ocr-progress" id="wizProg"><div class="bar"></div></div>
+        <div class="photo-status" id="wizStatus"></div>
+        <div class="hint" id="wizHint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left"></div>
+      </div>
+
+      <!-- Campos do equipamento (passos 1-4) -->
+      <div id="wizFieldsEquip">
+        <div class="section-title">Dados do equipamento (confira/corrija)</div>
+        <div class="field">
+          <label for="wTipo">Tipo</label>
+          <select id="wTipo">
+            <option value="CPU">CPU</option>
+            <option value="Monitor">Monitor</option>
+            <option value="Telefone IP">Telefone IP</option>
+            <option value="Notebook">Notebook</option>
+            <option value="Impressora">Impressora</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="wMarca">Marca</label>
+          <input type="text" id="wMarca" list="marcasList" placeholder="Selecione ou digite..." autocomplete="off" />
+          <datalist id="marcasList">
+            <option value="Positivo"></option>
+            <option value="Dell"></option>
+            <option value="HP"></option>
+            <option value="LG"></option>
+            <option value="Lenovo"></option>
+            <option value="Samsung"></option>
+            <option value="Acer"></option>
+            <option value="Asus"></option>
+            <option value="Yealink"></option>
+            <option value="Cisco"></option>
+            <option value="Itautec"></option>
+            <option value="Apple"></option>
+            <option value="Philips"></option>
+            <option value="AOC"></option>
+            <option value="BenQ"></option>
+            <option value="Brother"></option>
+            <option value="Epson"></option>
+            <option value="Canon"></option>
+          </datalist>
+        </div>
+        <div class="field">
+          <label for="wModelo">Modelo</label>
+          <input type="text" id="wModelo" list="modelosList" placeholder="Sugestões baseadas no inventário..." autocomplete="off" />
+          <datalist id="modelosList"></datalist>
+        </div>
+        <div class="field">
+          <label for="wPatrimonio">Nº de Patrimônio</label>
+          <input type="text" id="wPatrimonio" placeholder="Número ou código de patrimônio (deixe vazio se não tem etiqueta)" />
+        </div>
+        <div class="field">
+          <label for="wSerie">Nº de Série</label>
+          <input type="text" id="wSerie" placeholder="Importante quando não tem patrimônio" />
+        </div>
+        <div class="field">
+          <label for="wObs">Observações</label>
+          <textarea id="wObs" placeholder="Ex.: Etiqueta DDE/CDT, sem etiqueta de patrimônio, etc."></textarea>
+        </div>
+      </div>
+
+      <!-- Campo Ramal (passo 5) -->
+      <div id="wizFieldsRamal" style="display:none">
+        <div class="info-banner">
+          📞 Digite o número do ramal do telefone IP (ex.: 5190). Se não tem ramal, pode pular.
+        </div>
+        <div class="field">
+          <label for="wRamal">Ramal</label>
+          <input type="tel" id="wRamal" placeholder="Ex.: 5190" inputmode="numeric" />
+        </div>
+      </div>
+
+      <!-- Campo Usuário (passo 6) -->
+      <div id="wizFieldsUser" style="display:none">
+        <div class="info-banner">
+          👤 Identifique o usuário desta estação. Pode tirar foto da tela com o nome OU digitar manualmente abaixo.
+        </div>
+        <div class="field">
+          <label for="wUsuario">Nome do usuário</label>
+          <input type="text" id="wUsuario" placeholder="Nome completo (capturado da foto ou digitado)" />
+        </div>
+      </div>
+
+      <!-- Resumo da sessão (visível durante o wizard) -->
+      <div class="session-summary" id="wizSummary"></div>
+
+      <div class="footbar">
+        <button class="btn btn-secondary" id="wizBack" style="flex:1">← Voltar</button>
+        <button class="btn btn-secondary" id="wizSkip" style="flex:1; display:none">Pular</button>
+        <button class="btn btn-secondary" id="wizSaveNext" style="flex:1; display:none">+ outro</button>
+        <button class="btn btn-primary" id="wizNext" style="flex:1.3">Próximo →</button>
+      </div>
+    </section>
+
+    <!-- TELA 3: Captura -->
+    <section class="screen" id="screen-capture">
+      <div class="photo-section" id="photoLabelBox">
+        <h3>1. Foto da etiqueta do equipamento</h3>
+        <img class="photo-preview" id="photoLabel" alt="Etiqueta" />
+        <label class="cap-btn">
+          📷 Tirar foto da etiqueta
+          <input type="file" accept="image/*" capture="environment" id="inputLabel" />
+        </label>
+        <div class="ocr-progress" id="progLabel"><div class="bar"></div></div>
+        <div class="photo-status" id="statusLabel"></div>
+        <div class="hint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left">
+          <strong style="color:#1F4E78">Etiqueta</strong><br>
+          📸 Centralize a etiqueta e mantenha foco nos números e o máximo de informação que possuir. Quanto mais legível a foto, melhor será a identificação automática.
+        </div>
+      </div>
+
+      <div class="photo-section" id="photoUserBox">
+        <h3>2. Foto da tela do usuário</h3>
+        <img class="photo-preview" id="photoUser" alt="Tela usuário" />
+        <label class="cap-btn">
+          📷 Tirar foto da tela
+          <input type="file" accept="image/*" capture="environment" id="inputUser" />
+        </label>
+        <div class="ocr-progress" id="progUser"><div class="bar"></div></div>
+        <div class="photo-status" id="statusUser"></div>
+        <div class="hint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left">
+          <strong style="color:#1F4E78">Usuário</strong><br>
+          📸 Fotografe a tela mostrando o nome do usuário. Evite reflexos e mantenha o texto nítido.
+        </div>
+      </div>
+
+      <div class="section-title">Dados do equipamento (confira/corrija)</div>
+
+      <div class="field">
+        <label for="fTipo">Tipo</label>
+        <select id="fTipo">
+          <option value="CPU">CPU</option>
+          <option value="Monitor">Monitor</option>
+          <option value="Telefone IP">Telefone IP</option>
+          <option value="Notebook">Notebook</option>
+          <option value="Impressora">Impressora</option>
+          <option value="Outro">Outro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fMarca">Marca</label>
+        <input type="text" id="fMarca" placeholder="Ex.: Positivo, Dell, HP, LG..." />
+      </div>
+      <div class="field">
+        <label for="fModelo">Modelo</label>
+        <input type="text" id="fModelo" placeholder="Ex.: Master C4400 Mini" />
+      </div>
+      <div class="field">
+        <label for="fPatrimonio">Nº de Patrimônio</label>
+        <input type="text" id="fPatrimonio" placeholder="Número ou código de patrimônio" />
+      </div>
+      <div class="field">
+        <label for="fSerie">Nº de Série</label>
+        <input type="text" id="fSerie" placeholder="Ex.: 5A407GK14 (use - se não houver)" />
+      </div>
+      <div class="field">
+        <label for="fUsuario">Usuário</label>
+        <input type="text" id="fUsuario" placeholder="Nome completo" />
+      </div>
+      <div class="field">
+        <label for="fObs">Observações</label>
+        <textarea id="fObs" placeholder="Ex.: Etiqueta DDE/CDT 056050, ramal 5190..."></textarea>
+      </div>
+
+      <div class="footbar">
+        <button class="btn btn-secondary" id="btnCancel" style="flex:1">Cancelar</button>
+        <button class="btn btn-primary" id="btnSaveItem" style="flex:1.3">Salvar item</button>
+      </div>
+    </section>
+
+    <!-- TELA 4: Finalizar -->
+    <section class="screen" id="screen-finish">
+      <div class="resumo-box">
+        <h3>Resumo do inventário</h3>
+        <div class="resumo-row"><span>Data</span><span id="rData">-</span></div>
+        <div class="resumo-row"><span>Setor</span><span id="rSetor">-</span></div>
+        <div class="resumo-row"><span>Total de itens</span><span id="rTotal">0</span></div>
+        <div class="resumo-row"><span>CPUs</span><span id="rCpu">0</span></div>
+        <div class="resumo-row"><span>Monitores</span><span id="rMon">0</span></div>
+        <div class="resumo-row"><span>Telefones IP</span><span id="rTel">0</span></div>
+        <div class="resumo-row"><span>Usuários únicos</span><span id="rUsr">0</span></div>
+      </div>
+
+      <button class="btn btn-success" id="btnGen">📊 Gerar planilha .xlsx</button>
+      <button class="btn btn-primary" id="btnShare" style="margin-top:10px; display:none">📤 Compartilhar planilha</button>
+      <button class="btn btn-secondary" id="btnPdf" style="margin-top:10px">📄 Gerar PDF</button>
+      <button class="btn btn-secondary" id="btnBackList">← Voltar para a lista</button>
+      <button class="btn btn-danger" id="btnNew" style="margin-top:24px">🗑️ Encerrar e iniciar novo inventário</button>
+    </section>
+
+    <!-- Modal de Câmera Customizada -->
+    <div id="cameraModal" class="cam-modal-bg" style="display:none">
+      <video id="camVideo" class="cam-video" playsinline muted autoplay></video>
+      <div class="cam-overlay">
+        <div class="cam-guide-frame">
+          <div class="cam-guide-corner tl"></div>
+          <div class="cam-guide-corner tr"></div>
+          <div class="cam-guide-corner bl"></div>
+          <div class="cam-guide-corner br"></div>
+          <div class="cam-guide-label">Centralize a etiqueta aqui</div>
+        </div>
+        <div class="cam-detect-status" id="camDetectStatus"></div>
+      </div>
+      <div class="cam-controls-top">
+        <button class="cam-btn-close" id="camClose" aria-label="Fechar">×</button>
+        <button class="cam-btn-icon" id="camTorch" aria-label="Lanterna" title="Lanterna" style="display:none">⚡</button>
+      </div>
+      <div class="cam-controls-bottom">
+        <div class="cam-zoom-group" id="camZoomGroup" style="display:none">
+          <button class="cam-btn-zoom" id="camZoomOut" aria-label="Reduzir zoom">−</button>
+          <span class="cam-zoom-label" id="camZoomLabel">1.0x</span>
+          <button class="cam-btn-zoom" id="camZoomIn" aria-label="Aumentar zoom">+</button>
+        </div>
+        <button class="cam-btn-capture" id="camCapture" aria-label="Capturar foto">
+          <span class="cam-btn-capture-inner"></span>
+        </button>
+        <div class="cam-auto-group">
+          <label class="cam-auto-toggle">
+            <input type="checkbox" id="camAuto" checked />
+            <span>Auto</span>
+          </label>
+        </div>
+      </div>
+      <canvas id="camCanvas" style="display:none"></canvas>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Bibliotecas externas (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</htm

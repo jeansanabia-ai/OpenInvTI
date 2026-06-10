@@ -1,0 +1,38 @@
+# Backups locais
+*.bak
+*.fase1bak
+*.fase2bak
+*.old
+
+# Pasta de build
+dist/
+build/
+
+# Dependências (caso adicionar bundler no futuro)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Arquivos de IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.production
+
+# Cache
+.cache/
+.parcel-cache/
