@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.openinvti.web",
+        "sha256_cert_fingerprints": ["91:4E:11:9B:D6:7D:EE:03:81:2E:E5:18:BD:FE:51:BF:84:01:C9:19:2F:D9:76:86:F1:3D:68:27:F9:E4:D2:45"]
+      }
+    }]

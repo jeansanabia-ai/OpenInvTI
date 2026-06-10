@@ -1,0 +1,10 @@
+Keep this file and signing.keystore in a safe place. You'll need these files if you want to upload future versions of your PWA to the Google Play Store.
+
+Key store file: signing.keystore
+Key store password: _aKag_uPN69R
+Key alias: openinvti
+Key password: _aKag_uPN69R
+Signer's full name: OpenInvTI Admin
+Signer's organization: OpenInvTI - Inventario de TI
+Signer's organizational unit: Open Source
+Signer's country code: BR

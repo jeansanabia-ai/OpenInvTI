@@ -2,6 +2,22 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.0.7] - 2026-06-10
+
+### Corrigido (bugs reportados no primeiro teste em produção)
+- **Bug #1**: Dashboard (SESSÕES / ITENS / USUÁRIOS) agora soma o histórico de inventários arquivados, não zera ao começar novo. O botão "Encerrar e iniciar novo" foi renomeado para "Arquivar e começar novo" e agora preserva o resumo.
+- **Bug #2**: Botão "+ outro" no wizard não mostra mais "Identifique o usuário" sem contexto. Agora navega automaticamente para a etapa do usuário e mostra mensagem clara explicando o que fazer.
+- **Bug #3**: Após gerar planilha (.xlsx) ou PDF, exibe modal com botões diretos pra **WhatsApp**, **Email** e **Compartilhar** (Web Share API). Não precisa mais ir em Downloads manualmente.
+- **Bug #4**: OCR demorando >8s agora mostra botão "Preencher manualmente" pra pular o reconhecimento sem perder a foto.
+
+### Melhorado
+- Compartilhamento integrado: planilha e PDF abrem menu nativo do sistema (WhatsApp / Teams / Outlook / Gmail / Drive).
+- Modal pós-download com instruções claras de onde encontrar o arquivo (Android / Chrome / PC).
+- Persistência do histórico de inventários no IndexedDB.
+
+### Mudado
+- Cache do SW: `openinvti-v1.0.7-prod`.
+
 ## [1.0.6] - 2026-06-09
 
 ### Mudado

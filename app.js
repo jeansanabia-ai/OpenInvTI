@@ -48,6 +48,8 @@ const STATE = {
   wizardItems: [],      // itens temporários da sessão atual
   wizardRamal: '',
   wizardUsuario: '',
+  // Historico de inventarios finalizados (alimenta dashboard cumulativo)
+  historicoSessoes: [],  // [{id, data, setor, totalItens, totalUsuarios, dataArquivamento}]
 };
 
 // Definição dos passos do wizard
@@ -140,6 +142,7 @@ function updateDashboard() {
   const dashItn = document.getElementById('dashItens');
   const dashUsr = document.getElementById('dashUsuarios');
   if (!dashSes && !dashItn && !dashUsr) return;
+  // Conta sessoes/usuarios do inventario ATUAL em andamento
   const sessoes = new Set();
   const usuarios = new Set();
   for (const it of (STATE.items || [])) {
@@ -147,9 +150,47 @@ function updateDashboard() {
     else sessoes.add('legacy-' + (it.usuario || ''));
     if (it.usuario) usuarios.add(it.usuario);
   }
-  if (dashSes) dashSes.textContent = sessoes.size;
-  if (dashItn) dashItn.textContent = (STATE.items || []).length;
-  if (dashUsr) dashUsr.textContent = usuarios.size;
+  // Soma com o historico de inventarios JA FINALIZADOS
+  let totSessoes = sessoes.size;
+  let totItens = (STATE.items || []).length;
+  let totUsuarios = usuarios.size;
+  const usuariosUnicos = new Set(usuarios);
+  for (const h of (STATE.historicoSessoes || [])) {
+    totSessoes += (h.totalSessoes || 0);
+    totItens += (h.totalItens || 0);
+    if (Array.isArray(h.usuarios)) {
+      for (const u of h.usuarios) usuariosUnicos.add(u);
+    }
+  }
+  totUsuarios = usuariosUnicos.size;
+  if (dashSes) dashSes.textContent = totSessoes;
+  if (dashItn) dashItn.textContent = totItens;
+  if (dashUsr) dashUsr.textContent = totUsuarios;
+}
+
+// Arquiva o inventario atual no historico antes de limpar
+function arquivarInventarioAtual() {
+  if (!STATE.items || STATE.items.length === 0) return;
+  const sessoesSet = new Set();
+  const usuariosSet = new Set();
+  for (const it of STATE.items) {
+    if (it.sessionId) sessoesSet.add(it.sessionId);
+    else sessoesSet.add('legacy-' + (it.usuario || ''));
+    if (it.usuario) usuariosSet.add(it.usuario);
+  }
+  const resumo = {
+    id: 'inv-' + Date.now(),
+    data: STATE.data || todayIso(),
+    setor: STATE.setor || '(sem setor)',
+    titulo: STATE.titulo || '',
+    totalSessoes: sessoesSet.size,
+    totalItens: STATE.items.length,
+    totalUsuarios: usuariosSet.size,
+    usuarios: Array.from(usuariosSet),
+    dataArquivamento: new Date().toISOString(),
+  };
+  if (!Array.isArray(STATE.historicoSessoes)) STATE.historicoSessoes = [];
+  STATE.historicoSessoes.push(resumo);
 }
 
 function updateTopbar() {
@@ -1024,14 +1065,28 @@ function wizardFinish() {
 
 function wizardSaveAndContinue() {
   // Salva sessao atual e abre wizard novo imediatamente
-  const usr = (STATE.wizardUsuario || '').trim();
-  if (!usr) { toast('Identifique o usuario antes de continuar.', 3000); return; }
+  // Primeiro captura o que ja foi digitado na tela atual
   wizardCaptureCurrent();
+  const usr = (STATE.wizardUsuario || '').trim();
+  if (!usr) {
+    // Auto-navega pra etapa do usuario pra usuario poder preencher
+    const usrStepIdx = WIZARD_STEPS.findIndex((s) => s.key === 'usuario');
+    if (usrStepIdx >= 0 && STATE.wizardStep !== usrStepIdx) {
+      STATE.wizardStep = usrStepIdx;
+      renderWizard();
+      toast('Antes de salvar e adicionar outro equipamento, identifique o usuario desta estacao (tire foto da tela ou digite o nome).', 4500);
+    } else {
+      toast('Identifique o usuario antes de continuar (campo abaixo).', 3500);
+      // Foca no campo
+      try { $('wUsuario') && $('wUsuario').focus(); } catch (e) {}
+    }
+    return;
+  }
   const ram = (STATE.wizardRamal || '').trim();
   const sid = STATE.wizardSessionId;
   STATE.items = STATE.items.filter((it) => it.sessionId !== sid);
   const valid = STATE.wizardItems.filter(Boolean);
-  if (valid.length === 0) { toast('Sem equipamentos.', 3000); return; }
+  if (valid.length === 0) { toast('Sem equipamentos para salvar.', 3000); return; }
   for (const it of valid) { it.usuario = usr; it.ramal = ram; STATE.items.push(it); }
   saveState();
   updateTopbar(); updateDashboard();
@@ -1638,7 +1693,88 @@ async function gerarPlanilha() {
   const btnShare = $('btnShare');
   if (btnShare) btnShare.style.display = 'flex';
 
-  toast('Planilha gerada! Verifique seus downloads ou use Compartilhar.');
+  // Feedback visual rico ao usuario com instrucoes claras
+  showDownloadFeedback({
+    tipo: 'planilha',
+    nome: nomeArquivo,
+    icone: '📊',
+    titulo: 'Planilha gerada e baixada!',
+  });
+}
+
+// Modal de feedback pos-download com botoes diretos pra apps (WhatsApp/Email/Teams via Web Share)
+function showDownloadFeedback({ tipo, nome, icone, titulo }) {
+  // Remove modal anterior se existir
+  const old = document.getElementById('downloadFeedbackModal');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'downloadFeedbackModal';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeIn 0.2s;';
+
+  const setor = (STATE.setor || 'Setor').replace(/[^a-zA-Z0-9 _-]/g, '');
+  const data = STATE.data || todayIso();
+  const totalItens = (STATE.items || []).length;
+  const textoCompartilhar = `Inventario de TI - ${setor} - ${data}\n${totalItens} equipamento(s) registrado(s)\nGerado pelo OpenInvTI (https://github.com/jeansanabia-ai/OpenInvTI)`;
+
+  overlay.innerHTML = `
+    <div style="background:#1E293B;border-radius:14px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid rgba(56,189,248,0.2);max-height:90vh;overflow-y:auto;">
+      <div style="font-size:48px;text-align:center;margin-bottom:8px;">${icone}</div>
+      <h3 style="color:#7DD3FC;margin:0 0 12px;text-align:center;font-size:18px;">${titulo}</h3>
+      <div style="background:rgba(56,189,248,0.08);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#E2E8F0;word-break:break-all;font-family:monospace;text-align:center;">${nome}</div>
+      <button id="dlFbShareFile" style="width:100%;padding:14px;background:linear-gradient(135deg,#0EA5E9,#0284C7);color:white;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;box-shadow:0 4px 14px rgba(14,165,233,0.3);">
+        📤 Compartilhar arquivo (WhatsApp / Teams / Email / Drive)
+      </button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+        <button id="dlFbWhats" style="padding:10px 6px;background:#25D366;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">💬 WhatsApp</button>
+        <button id="dlFbEmail" style="padding:10px 6px;background:#0F766E;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">📧 Email</button>
+      </div>
+      <details style="margin-bottom:14px;">
+        <summary style="cursor:pointer;color:#94A3B8;font-size:12px;padding:6px 0;">📂 Como achar o arquivo manualmente?</summary>
+        <div style="font-size:12px;color:#94A3B8;line-height:1.6;padding:8px 4px;">
+          📱 Android: app <strong>Arquivos</strong> → <strong>Downloads</strong><br>
+          🌐 Chrome: menu (⋮) → <strong>Downloads</strong> / <strong>Transferências</strong><br>
+          💻 PC: pasta <strong>Downloads</strong> do seu usuario
+        </div>
+      </details>
+      <button id="dlFbClose" style="width:100%;padding:11px;background:transparent;color:#94A3B8;border:1.5px solid #334155;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  document.getElementById('dlFbClose').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  // Botao principal: Web Share com arquivo (abre menu nativo com WhatsApp, Teams, Drive, etc)
+  document.getElementById('dlFbShareFile').onclick = async () => {
+    if (tipo === 'planilha') {
+      try { await compartilharPlanilha(); } catch (e) { console.error(e); }
+    } else if (tipo === 'pdf' && window._lastPdfBlob) {
+      try {
+        const file = new File([window._lastPdfBlob], window._lastPdfNome || 'inventario.pdf', { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Inventario de TI', text: textoCompartilhar });
+        } else {
+          toast('Seu navegador nao suporta compartilhar arquivos diretamente. Abre WhatsApp/Email e anexa do Downloads.', 5000);
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') console.error(e);
+      }
+    }
+  };
+
+  // Atalho: WhatsApp (text-only - usuario anexa o arquivo manualmente do Downloads)
+  document.getElementById('dlFbWhats').onclick = () => {
+    const wppUrl = 'https://wa.me/?text=' + encodeURIComponent(textoCompartilhar);
+    window.open(wppUrl, '_blank');
+    toast('Abrindo WhatsApp. Anexe o arquivo "' + nome + '" da pasta Downloads.', 5000);
+  };
+
+  // Atalho: Email
+  document.getElementById('dlFbEmail').onclick = () => {
+    const subject = encodeURIComponent('Inventario de TI - ' + setor + ' - ' + data);
+    const body = encodeURIComponent(textoCompartilhar + '\n\n(Anexe o arquivo "' + nome + '" da pasta Downloads.)');
+    window.location.href = 'mailto:?subject=' + subject + '&body=' + body;
+    toast('Abrindo email. Anexe o arquivo da pasta Downloads.', 5000);
+  };
 }
 
 async function compartilharPlanilha() {
@@ -1792,6 +1928,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       APP_CONFIG = Object.assign({}, DEFAULT_CONFIG);
       STATE.items = [];
       STATE.data = ''; STATE.setor = ''; STATE.titulo = '';
+      STATE.historicoSessoes = []; // zera tambem o dashboard cumulativo
       toast('Tudo limpo! Reiniciando...', 1500);
       setTimeout(() => location.reload(), 1200);
     } catch (e) { toast('Erro ao limpar: ' + e.message); }
@@ -1804,6 +1941,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   const saved = await loadState();
+  // BUG #1 FIX: SEMPRE carrega historicoSessoes (mesmo se nao tem inventario atual em andamento)
+  if (saved && Array.isArray(saved.historicoSessoes)) {
+    STATE.historicoSessoes = saved.historicoSessoes;
+  }
   if (saved && saved.items && saved.items.length > 0) {
     $('btnResume').style.display = 'flex';
     $('btnResume').onclick = () => {
@@ -1816,6 +1957,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       showScreen('screen-list');
     };
   }
+  // Renderiza dashboard com historico carregado (mesmo sem inventario atual)
+  updateDashboard();
   $('dataInv').value = todayIso();
 
   $('btnStart').onclick = () => {
@@ -1898,12 +2041,33 @@ window.addEventListener('DOMContentLoaded', async () => {
     status.classList.remove('error');
     prog.classList.add('active');
     prog.querySelector('.bar').style.width = '0%';
+    // Bug #4: timer de aviso para OCR demorado - apos 8s mostra opcao de pular pro manual
+    const slowOcrTimer = setTimeout(() => {
+      const oldHtml = status.innerHTML;
+      status.innerHTML = '⏱️ OCR esta demorando mais que o normal. <span style="display:inline-block;margin-left:6px;padding:4px 10px;background:#0EA5E9;color:#fff;border-radius:8px;font-weight:700;cursor:pointer;" id="ocrSkipBtn">Preencher manualmente</span>';
+      const skipBtn = document.getElementById('ocrSkipBtn');
+      if (skipBtn) {
+        skipBtn.onclick = () => {
+          status.innerHTML = '✏️ Preenchimento manual. Edite os campos abaixo (a foto fica salva).';
+          prog.classList.remove('active');
+          window._ocrSkipRequested = true;
+        };
+      }
+    }, 8000);
     try {
       const { text, dataUrl } = await ocrImage(
         file,
         (p) => { prog.querySelector('.bar').style.width = p + '%'; },
-        (msg) => { status.textContent = msg; }
+        (msg) => { if (!window._ocrSkipRequested) status.textContent = msg; }
       );
+      clearTimeout(slowOcrTimer);
+      // Se usuario pediu pra pular durante OCR, ainda mostra a foto mas nao preenche
+      if (window._ocrSkipRequested) {
+        window._ocrSkipRequested = false;
+        $('wizPhoto').src = dataUrl;
+        $('wizPhoto').classList.add('show');
+        return;
+      }
       $('wizPhoto').src = dataUrl;
       $('wizPhoto').classList.add('show');
       // Aviso de foto borrada
@@ -1945,11 +2109,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
       }
     } catch (err) {
+      clearTimeout(slowOcrTimer);
       console.error('Erro OCR wizard:', err);
       const msg = (err && (err.message || err.toString())) || 'erro desconhecido';
       status.textContent = 'Erro no OCR: ' + msg + '. Preencha manualmente.';
       status.classList.add('error');
     } finally {
+      clearTimeout(slowOcrTimer);
       prog.classList.remove('active');
     }
   }
@@ -2001,15 +2167,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   };
 
   $('btnNew').onclick = async () => {
-    if (!confirm('Apagar este inventario e comecar um novo? A planilha ja baixada nao sera afetada.')) return;
+    if (!confirm('Arquivar este inventario e comecar um novo? A planilha ja baixada nao sera afetada. O resumo deste inventario fica no dashboard.')) return;
+    // BUG #1 FIX: Arquiva o inventario atual no historico antes de limpar
+    arquivarInventarioAtual();
     STATE.data = ''; STATE.setor = ''; STATE.titulo = ''; STATE.items = []; STATE.editingId = null;
-    await clearState();
+    // Salva state COM o historico atualizado (nao usa clearState, que apaga tudo)
+    await saveState();
     $('setorInv').value = '';
     $('dataInv').value = todayIso();
     $('btnResume').style.display = 'none';
     window._lastPlanilhaBlob = null;
     if ($('btnShare')) $('btnShare').style.display = 'none';
     updateTopbar(); updateDashboard();
+    toast('Inventario arquivado! Comece um novo.', 3500);
     showScreen('screen-start');
   };
 
