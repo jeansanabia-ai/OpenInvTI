@@ -125,4 +125,9 @@ Decidi **abrir o código** porque:
 ## 🤝 Como contribuir
 
 - ⭐ **Star no repo** ajuda muito a visibilidade
-- 🐛 **Issues** — reporta bugs ou 
+- 🐛 **Issues** — reporta bugs ou sugere features
+- 🍴 **Fork + Pull Request** — manda código
+- 📣 **Divulga** — quem você conhece que precisa disso?
+
+Site: `https://SEU-USER.github.io/openinvti/`
+Código: `https://github.com/SEU-USER/openinvti`

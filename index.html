@@ -54,8 +54,13 @@
         <div class="hint">Lista que aparece como sugestão no campo Marca durante o inventário.</div>
       </div>
       <div class="field">
-        <button type="button" class="btn btn-secondary" id="cfgDetectarPadrao">📸 Detectar padrão por foto</button>
-        <div class="hint">Tire foto de uma etiqueta exemplo da sua empresa e o app sugere automaticamente o regex.</div>
+        <label for="cfgGroqKey">Chave API Groq (opcional) — para detecção com IA</label>
+        <input type="password" id="cfgGroqKey" placeholder="gsk_xxxxxxxxxxxx (deixe vazio para análise local)" autocomplete="off" />
+        <div class="hint">Grátis em <a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="color:#67E8F9">console.groq.com/keys</a>. Com chave: envia os textos OCR para Llama 3.3 70B e recebe regex otimizado. Sem chave: análise local (funciona em ~85% dos casos).</div>
+      </div>
+      <div class="field">
+        <button type="button" class="btn btn-secondary" id="cfgDetectarPadrao">📸 Detectar padrão (3-5 fotos)</button>
+        <div class="hint">Tire de 3 a 5 fotos de etiquetas diferentes da sua empresa. O app analisa todas e sugere o melhor regex (vários padrões aceitos).</div>
       </div>
       <div id="cfgPadroesSugestoes" style="display:none"></div>
       <button class="btn btn-primary" id="cfgSalvar">✓ Salvar e começar</button>
@@ -95,7 +100,7 @@
       </div>
       <div class="field">
         <label for="setorInv">Setor</label>
-        <input type="text" id="setorInv" placeholder="Ex.: Metrologia / Validação / Almoxarifado" />
+        <input type="text" id="setorInv" placeholder="Informe o setor" />
       </div>
       <div class="field">
         <label for="tituloInv">Título do inventário</label>
@@ -322,6 +327,7 @@
       <button class="btn btn-success" id="btnGen">📊 Gerar planilha .xlsx</button>
       <button class="btn btn-primary" id="btnShare" style="margin-top:10px; display:none">📤 Compartilhar planilha</button>
       <button class="btn btn-secondary" id="btnPdf" style="margin-top:10px">📄 Gerar PDF</button>
+      <button class="btn btn-secondary" id="btnWhatsRelatorio" style="margin-top:10px;background:#25D366;color:#fff;border-color:#25D366">💬 Enviar relatório + planilha por WhatsApp</button>
       <button class="btn btn-secondary" id="btnBackList">← Voltar para a lista</button>
       <button class="btn btn-danger" id="btnNew" style="margin-top:24px">🗑️ Encerrar e iniciar novo inventário</button>
     </section>
@@ -374,4 +380,4 @@
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="app.js"></script>
 </body>
-</htm
+</html>

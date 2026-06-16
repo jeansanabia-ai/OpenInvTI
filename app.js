@@ -15,6 +15,7 @@ const DEFAULT_CONFIG = {
            'Positivo', 'Itautec', 'Yealink', 'Cisco', 'Avaya', 'Polycom',
            'Philips', 'AOC', 'BenQ', 'Brother', 'Epson', 'Canon', 'Xerox'],
   ocr_regex_extras: [],
+  ai: { groq_key: '', model: 'llama-3.3-70b-versatile' }, // v1.0.8: detecção de regex com IA
   setup_done: false,
 };
 
@@ -166,6 +167,18 @@ function updateDashboard() {
   if (dashSes) dashSes.textContent = totSessoes;
   if (dashItn) dashItn.textContent = totItens;
   if (dashUsr) dashUsr.textContent = totUsuarios;
+  // v1.0.8: Cards clicáveis com navegação para histórico
+  const cards = document.querySelectorAll('#screen-start .dash-card');
+  const tipos = ['sessoes', 'itens', 'usuarios'];
+  cards.forEach((card, i) => {
+    if (!card.classList.contains('clickable')) {
+      card.classList.add('clickable');
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.addEventListener('click', () => abrirHistoricoModal(tipos[i]));
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirHistoricoModal(tipos[i]); } });
+    }
+  });
 }
 
 // Arquiva o inventario atual no historico antes de limpar
@@ -195,8 +208,18 @@ function arquivarInventarioAtual() {
 
 function updateTopbar() {
   const total = STATE.items.length;
-  $('topBadge').style.display = total > 0 ? 'inline-flex' : 'none';
-  $('topBadge').textContent = `${total} ${total === 1 ? 'item' : 'itens'}`;
+  const badge = $('topBadge');
+  badge.style.display = total > 0 ? 'inline-flex' : 'none';
+  badge.textContent = `${total} ${total === 1 ? 'item' : 'itens'}`;
+  // v1.0.8: badge clicável -> abre lista de itens da sessão atual
+  if (!badge.dataset.bound) {
+    badge.classList.add('clickable');
+    badge.setAttribute('role', 'button');
+    badge.setAttribute('tabindex', '0');
+    badge.addEventListener('click', () => abrirHistoricoModal('itens-atuais'));
+    badge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirHistoricoModal('itens-atuais'); } });
+    badge.dataset.bound = '1';
+  }
   if (STATE.setor) {
     $('topTitle').textContent = STATE.setor;
     $('topSub').textContent = fmtDateBR(STATE.data);
@@ -204,6 +227,125 @@ function updateTopbar() {
     $('topTitle').textContent = 'OpenInvTI';
     $('topSub').textContent = 'Inventário de TI corporativo';
   }
+}
+
+// v1.0.8: Modal de histórico — abre lista clicando em qualquer contador
+function abrirHistoricoModal(tipo) {
+  const old = document.getElementById('historyModal');
+  if (old) old.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'historyModal';
+  overlay.className = 'history-modal-bg';
+  let titulo = '';
+  let icone = '';
+  let conteudo = '';
+  const itensAtuais = STATE.items || [];
+  const historico = STATE.historicoSessoes || [];
+
+  if (tipo === 'itens-atuais') {
+    titulo = 'Itens da sessão atual';
+    icone = '📦';
+    if (itensAtuais.length === 0) {
+      conteudo = '<div class="hm-empty">Nenhum item registrado nesta sessão ainda.</div>';
+    } else {
+      conteudo = itensAtuais.map((it, i) => (
+        '<div class="hm-item">' +
+        '<strong>' + (i+1) + '. ' + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
+        '<div class="hm-sub">' +
+          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
+          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
+          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
+        '</div></div>'
+      )).join('');
+    }
+  } else if (tipo === 'sessoes') {
+    titulo = 'Sessões / Inventários';
+    icone = '📦';
+    const sessoesAgrupadas = {};
+    for (const it of itensAtuais) {
+      const key = it.sessionId || ('legacy-' + (it.usuario || ''));
+      if (!sessoesAgrupadas[key]) sessoesAgrupadas[key] = { usuario: it.usuario, qtd: 0, tipos: new Set() };
+      sessoesAgrupadas[key].qtd++;
+      sessoesAgrupadas[key].tipos.add(it.tipo || 'Outro');
+    }
+    let partes = [];
+    if (Object.keys(sessoesAgrupadas).length > 0) {
+      partes.push('<div style="font-size:12px;color:#67E8F9;font-weight:700;margin:6px 0">▸ Em andamento</div>');
+      partes.push(Object.entries(sessoesAgrupadas).map(([key, s]) => (
+        '<div class="hm-item">' +
+        '<strong>' + (s.usuario || '(sem usuário)') + '</strong>' +
+        '<div class="hm-sub">' + s.qtd + ' item(ns) · ' + Array.from(s.tipos).join(', ') + '</div></div>'
+      )).join(''));
+    }
+    if (historico.length > 0) {
+      partes.push('<div style="font-size:12px;color:#34D399;font-weight:700;margin:14px 0 6px">▸ Inventários arquivados</div>');
+      partes.push(historico.map((h) => (
+        '<div class="hm-item">' +
+        '<strong>' + (h.setor || '(sem setor)') + '</strong>' +
+        '<div class="hm-sub">' +
+          (h.data ? fmtDateBR(h.data) + ' · ' : '') +
+          (h.totalSessoes || 0) + ' sessão(ões) · ' +
+          (h.totalItens || 0) + ' item(ns) · ' +
+          (h.totalUsuarios || 0) + ' usuário(s)' +
+        '</div></div>'
+      )).join(''));
+    }
+    if (partes.length === 0) partes.push('<div class="hm-empty">Nenhuma sessão registrada ainda.</div>');
+    conteudo = partes.join('');
+  } else if (tipo === 'itens') {
+    titulo = 'Itens registrados';
+    icone = '💻';
+    const partes = [];
+    if (itensAtuais.length > 0) {
+      partes.push('<div style="font-size:12px;color:#67E8F9;font-weight:700;margin:6px 0">▸ Inventário atual (' + itensAtuais.length + ')</div>');
+      partes.push(itensAtuais.map((it, i) => (
+        '<div class="hm-item">' +
+        '<strong>' + (i+1) + '. ' + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
+        '<div class="hm-sub">' +
+          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
+          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
+          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
+        '</div></div>'
+      )).join(''));
+    }
+    if (historico.length > 0) {
+      const totHist = historico.reduce((acc, h) => acc + (h.totalItens || 0), 0);
+      partes.push('<div style="font-size:12px;color:#34D399;font-weight:700;margin:14px 0 6px">▸ Itens em inventários arquivados (' + totHist + ')</div>');
+      partes.push('<div class="hm-empty" style="padding:10px 4px;font-size:11px">Os detalhes individuais ficam nos arquivos .xlsx que você gerou para cada inventário.</div>');
+    }
+    if (partes.length === 0) partes.push('<div class="hm-empty">Nenhum item registrado ainda.</div>');
+    conteudo = partes.join('');
+  } else if (tipo === 'usuarios') {
+    titulo = 'Usuários únicos';
+    icone = '👥';
+    const usuariosUnicos = new Set();
+    for (const it of itensAtuais) { if (it.usuario) usuariosUnicos.add(it.usuario); }
+    for (const h of historico) { if (Array.isArray(h.usuarios)) h.usuarios.forEach(u => usuariosUnicos.add(u)); }
+    const lista = Array.from(usuariosUnicos).sort();
+    if (lista.length === 0) {
+      conteudo = '<div class="hm-empty">Nenhum usuário registrado ainda.</div>';
+    } else {
+      conteudo = lista.map((u, i) => {
+        const itensDoUser = itensAtuais.filter(it => it.usuario === u);
+        const tipos = new Set(itensDoUser.map(it => it.tipo));
+        return '<div class="hm-item">' +
+          '<strong>' + (i+1) + '. ' + u + '</strong>' +
+          '<div class="hm-sub">' + itensDoUser.length + ' item(ns) na sessão atual' +
+            (tipos.size > 0 ? ' · ' + Array.from(tipos).join(', ') : '') +
+          '</div></div>';
+      }).join('');
+    }
+  }
+
+  overlay.innerHTML =
+    '<div class="history-modal">' +
+      '<button class="hm-close" id="hmCloseBtn">Fechar ×</button>' +
+      '<h3>' + icone + ' ' + titulo + '</h3>' +
+      conteudo +
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
 // ============================================================
@@ -1714,7 +1856,8 @@ function showDownloadFeedback({ tipo, nome, icone, titulo }) {
   const setor = (STATE.setor || 'Setor').replace(/[^a-zA-Z0-9 _-]/g, '');
   const data = STATE.data || todayIso();
   const totalItens = (STATE.items || []).length;
-  const textoCompartilhar = `Inventario de TI - ${setor} - ${data}\n${totalItens} equipamento(s) registrado(s)\nGerado pelo OpenInvTI (https://github.com/jeansanabia-ai/OpenInvTI)`;
+  // v1.0.8: texto enxuto, sem link do projeto (compartilhamos apenas o arquivo)
+  const textoCompartilhar = `Inventario de TI - ${setor} - ${data}\n${totalItens} equipamento(s) registrado(s)`;
 
   overlay.innerHTML = `
     <div style="background:#1E293B;border-radius:14px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid rgba(56,189,248,0.2);max-height:90vh;overflow-y:auto;">
@@ -1761,11 +1904,27 @@ function showDownloadFeedback({ tipo, nome, icone, titulo }) {
     }
   };
 
-  // Atalho: WhatsApp (text-only - usuario anexa o arquivo manualmente do Downloads)
-  document.getElementById('dlFbWhats').onclick = () => {
-    const wppUrl = 'https://wa.me/?text=' + encodeURIComponent(textoCompartilhar);
-    window.open(wppUrl, '_blank');
-    toast('Abrindo WhatsApp. Anexe o arquivo "' + nome + '" da pasta Downloads.', 5000);
+  // v1.0.8: WhatsApp via Web Share (compartilha O ARQUIVO direto, sem link promocional)
+  document.getElementById('dlFbWhats').onclick = async () => {
+    try {
+      let file = null;
+      if (tipo === 'planilha' && window._lastPlanilhaBuf) {
+        file = new File([window._lastPlanilhaBuf], nome, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      } else if (tipo === 'planilha' && window._lastPlanilhaBlob) {
+        file = new File([window._lastPlanilhaBlob], nome, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      } else if (tipo === 'pdf' && window._lastPdfBlob) {
+        file = new File([window._lastPdfBlob], nome, { type: 'application/pdf' });
+      }
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] }); // só o arquivo, sem texto promocional
+        return;
+      }
+      // Fallback: abre WhatsApp Web no chat picker (sem link/texto promocional)
+      window.open('https://wa.me/', '_blank');
+      toast('Anexe o arquivo "' + nome + '" da pasta Downloads.', 5000);
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error(e);
+    }
   };
 
   // Atalho: Email
@@ -1868,6 +2027,165 @@ function abrirShareModal() {
   };
 }
 
+// v1.0.8: Monta um relatório formatado em texto e dispara WhatsApp + planilha
+function montarRelatorioTexto() {
+  const setor = STATE.setor || '(sem setor)';
+  const data = fmtDateBR(STATE.data || todayIso());
+  const empresa = (APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'Empresa';
+  const titulo = STATE.titulo || (APP_CONFIG.empresa && APP_CONFIG.empresa.titulo) || 'Inventário de TI';
+  const items = STATE.items || [];
+  const total = items.length;
+  const porTipo = {};
+  for (const it of items) {
+    const t = it.tipo || 'Outro';
+    porTipo[t] = (porTipo[t] || 0) + 1;
+  }
+  const usuariosUnicos = new Set(items.map(i => i.usuario).filter(Boolean)).size;
+  const sessoesUnicas = new Set(items.map(i => i.sessionId || ('legacy-' + (i.usuario || '')))).size;
+  const linhas = [];
+  linhas.push('*' + titulo + '*');
+  linhas.push('');
+  linhas.push('🏢 *Empresa:* ' + empresa);
+  linhas.push('📍 *Setor:* ' + setor);
+  linhas.push('📅 *Data:* ' + data);
+  linhas.push('');
+  linhas.push('📦 *Total de itens:* ' + total);
+  linhas.push('👥 *Usuários únicos:* ' + usuariosUnicos);
+  linhas.push('🗂️ *Sessões / estações:* ' + sessoesUnicas);
+  linhas.push('');
+  linhas.push('📊 *Resumo por tipo:*');
+  const ordemTipos = ['CPU', 'Notebook', 'Monitor', 'Telefone IP', 'Impressora', 'Outro'];
+  const tiposVistos = new Set();
+  for (const t of ordemTipos) {
+    if (porTipo[t]) { linhas.push('• ' + t + ': ' + porTipo[t]); tiposVistos.add(t); }
+  }
+  for (const t in porTipo) {
+    if (!tiposVistos.has(t)) linhas.push('• ' + t + ': ' + porTipo[t]);
+  }
+  linhas.push('');
+  linhas.push('📎 Planilha completa em anexo (.xlsx)');
+  return linhas.join('\n');
+}
+
+async function enviarRelatorioWhatsApp() {
+  if (!STATE.items || STATE.items.length === 0) {
+    toast('Nenhum item para reportar. Adicione equipamentos primeiro.');
+    return;
+  }
+  const textoRelatorio = montarRelatorioTexto();
+  // Garante que a planilha foi gerada (gera no ato se ainda não foi)
+  if (!window._lastPlanilhaBuf && !window._lastPlanilhaBlob) {
+    toast('Gerando planilha primeiro…', 2000);
+    try { await gerarPlanilha(); } catch (e) { toast('Erro ao gerar planilha: ' + (e.message || e)); return; }
+  }
+  const nome = window._lastPlanilhaNome || 'Inventario.xlsx';
+  const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  let file = null;
+  try {
+    if (window._lastPlanilhaBuf) file = new File([window._lastPlanilhaBuf], nome, { type: mime, lastModified: Date.now() });
+    else if (window._lastPlanilhaBlob) file = new File([window._lastPlanilhaBlob], nome, { type: mime, lastModified: Date.now() });
+  } catch (e) { /* ignore */ }
+  // Tier 1: Web Share API com arquivo + texto (Chrome Android: WhatsApp aparece na lista)
+  try {
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], text: textoRelatorio, title: 'Inventário de TI' });
+      return;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.warn('Web Share falhou, tentando fallback:', err.message);
+  }
+  // Tier 2: Copia o texto pro clipboard e abre wa.me
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(textoRelatorio);
+      toast('Relatório copiado! Cole no WhatsApp e anexe a planilha.', 5500);
+    }
+  } catch (e) { /* ignore */ }
+  const wppUrl = 'https://wa.me/?text=' + encodeURIComponent(textoRelatorio);
+  window.open(wppUrl, '_blank');
+}
+
+// v1.0.8: Extração inteligente de TODOS os campos via IA Groq
+// Recebe o texto OCR e retorna { tipo, marca, modelo, patrimonio, serie, observacoes }
+async function extrairCamposComIA(textoOCR, contextoTipo) {
+  const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
+  if (!groqKey) return null;
+  const model = (APP_CONFIG.ai && APP_CONFIG.ai.model) || 'llama-3.3-70b-versatile';
+  const padroes = (APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.regex_padroes) || [];
+  const marcasConhecidas = (APP_CONFIG.marcas || []).slice(0, 30).join(', ');
+  const prompt = 'Você é um assistente especialista em inventário de TI. Analise o texto abaixo (extraído via OCR de uma etiqueta de equipamento corporativo) e extraia os campos do equipamento.\n\n' +
+    'TEXTO OCR:\n```\n' + (textoOCR || '').substring(0, 1500) + '\n```\n\n' +
+    (contextoTipo ? 'CONTEXTO: o usuário está cadastrando um(a) ' + contextoTipo + ', mas confirme pelo texto.\n\n' : '') +
+    'PADRÕES DE PATRIMÔNIO conhecidos da empresa: ' + (padroes.join(' | ') || '(não definido)') + '\n' +
+    'MARCAS conhecidas: ' + marcasConhecidas + '\n\n' +
+    'Retorne APENAS um JSON válido (sem markdown) com EXATAMENTE esta estrutura:\n' +
+    '{"tipo":"CPU|Monitor|Telefone IP|Notebook|Impressora|Outro","marca":"...","modelo":"...","patrimonio":"...","serie":"...","observacoes":"..."}\n\n' +
+    'Regras:\n' +
+    '- Se algum campo não estiver claro no texto, retorne string vazia "".\n' +
+    '- "tipo" DEVE ser um dos 6 valores acima.\n' +
+    '- "patrimonio" deve casar com algum padrão conhecido (se houver).\n' +
+    '- "serie" é o S/N do fabricante, geralmente alfanumérico longo.\n' +
+    '- "observacoes" pode ter info adicional relevante (etiqueta DDE/CDT, nº de bem, departamento, etc.) — máximo 80 chars.\n' +
+    '- NÃO invente dados. Se não encontrou, retorne "".';
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: 'Você responde APENAS com JSON válido, sem markdown, sem texto adicional.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 400,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!resp.ok) {
+    const errTxt = await resp.text().catch(() => '');
+    throw new Error('Groq HTTP ' + resp.status + ': ' + errTxt.substring(0, 100));
+  }
+  const data = await resp.json();
+  const content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch (e) {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }
+  }
+  if (!parsed) throw new Error('IA retornou formato inválido');
+  // Normaliza campos
+  const tiposValidos = ['CPU', 'Monitor', 'Telefone IP', 'Notebook', 'Impressora', 'Outro'];
+  return {
+    tipo: tiposValidos.includes(parsed.tipo) ? parsed.tipo : '',
+    marca: (parsed.marca || '').toString().trim(),
+    modelo: (parsed.modelo || '').toString().trim(),
+    patrimonio: (parsed.patrimonio || '').toString().trim(),
+    serie: (parsed.serie || '').toString().trim(),
+    observacoes: (parsed.observacoes || '').toString().trim().substring(0, 200),
+  };
+}
+
+// v1.0.8: Auto-detecta tipo do equipamento por palavras-chave no texto OCR
+function detectarTipoPorOCR(texto) {
+  if (!texto) return null;
+  const t = texto.toUpperCase();
+  // Telefone IP (mais específico primeiro pra evitar falsos positivos)
+  if (/\b(YEALINK|IP\s?PHONE|VOIP|TELEFONE\s?IP|GRANDSTREAM|POLYCOM|RAMAL|EXTENSION|HEADSET\s?IP)\b/.test(t)) return 'Telefone IP';
+  if (/\bSIP\s?\d{3,5}\b/.test(t)) return 'Telefone IP';
+  // Notebook
+  if (/\b(NOTEBOOK|LAPTOP|THINKPAD|INSPIRON|LATITUDE|IDEAPAD|MACBOOK|VIVOBOOK|ELITEBOOK|PROBOOK|ULTRABOOK|VAIO|SWIFT|GAMING\s?BOOK|YOGA)\b/.test(t)) return 'Notebook';
+  // Impressora
+  if (/\b(IMPRESSORA|PRINTER|MULTIFUNCION|LASERJET|DESKJET|OFFICEJET|ECOSYS|WORKCENTRE|PHASER|TASKALFA|BIZHUB|PIXMA|EPSON\s?L\d{2,4}|MFC|DCP)\b/.test(t)) return 'Impressora';
+  // Monitor
+  if (/\b(MONITOR|MONIT\.|DISPLAY|LCD|LED|UHD|QHD|FHD|FULLHD|"|POLEGADAS?|POL\.?|HDMI|VGA|DVI|DISPLAYPORT|IPS|TN\s|VA\s)\b/.test(t)) return 'Monitor';
+  if (/\b\d{2}\s?(POL|"|INCH|INCHES)\b/.test(t)) return 'Monitor';
+  // CPU / Desktop (mais genérico, vem por último)
+  if (/\b(WORKSTATION|DESKTOP|MINI\s?PC|TINY\s?PC|OPTIPLEX|PRECISION|THINKCENTRE|PRODESK|ELITEDESK|MICRO\s?TOWER|TOWER|CPU)\b/.test(t)) return 'CPU';
+  return null;
+}
+
 // ============================================================
 // Listeners
 // ============================================================
@@ -1900,7 +2218,16 @@ window.addEventListener('DOMContentLoaded', async () => {
     const marcasStr = ($('cfgMarcas').value || '').trim();
     if (marcasStr) APP_CONFIG.marcas = marcasStr.split(',').map(s => s.trim()).filter(Boolean);
     const patRegex = ($('cfgPatRegex').value || '').trim();
-    if (patRegex) APP_CONFIG.patrimonio.regex_padroes = [patRegex];
+    if (patRegex) {
+      // v1.0.8: suporta múltiplos regex separados por | (pipe) ou nova linha
+      APP_CONFIG.patrimonio.regex_padroes = patRegex.split(/\n|\s*\|\s*/).map(r => r.trim()).filter(Boolean);
+    }
+    // v1.0.8: salva chave Groq se informada
+    if ($('cfgGroqKey')) {
+      const groqKey = ($('cfgGroqKey').value || '').trim();
+      if (!APP_CONFIG.ai) APP_CONFIG.ai = { groq_key: '', model: 'llama-3.3-70b-versatile' };
+      APP_CONFIG.ai.groq_key = groqKey;
+    }
     APP_CONFIG.setup_done = true;
     saveConfig(APP_CONFIG);
     if ($('tituloInv')) $('tituloInv').value = APP_CONFIG.empresa.titulo;
@@ -1913,7 +2240,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     if ($('cfgEmpresa')) $('cfgEmpresa').value = APP_CONFIG.empresa.nome || '';
     if ($('cfgTitulo')) $('cfgTitulo').value = APP_CONFIG.empresa.titulo || '';
     if ($('cfgMarcas')) $('cfgMarcas').value = (APP_CONFIG.marcas || []).join(', ');
-    if ($('cfgPatRegex')) $('cfgPatRegex').value = (APP_CONFIG.patrimonio.regex_padroes || [])[0] || '';
+    // v1.0.8: mostra todos os regex unidos com | quando há mais de um
+    if ($('cfgPatRegex')) $('cfgPatRegex').value = (APP_CONFIG.patrimonio.regex_padroes || []).join(' | ');
+    if ($('cfgGroqKey')) $('cfgGroqKey').value = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
     if ($('cfgPadroesSugestoes')) { $('cfgPadroesSugestoes').innerHTML = ''; $('cfgPadroesSugestoes').style.display = 'none'; }
     showScreen('screen-setup');
   };
@@ -2085,23 +2414,62 @@ window.addEventListener('DOMContentLoaded', async () => {
           status.textContent = text.trim() ? 'OCR leu a tela mas nao identificou um nome. Digite manualmente abaixo.' : 'Nao consegui ler texto. Digite o nome manualmente.';
         }
       } else {
+        // v1.0.8: Extração híbrida — IA Groq prioritária, parseLabel como fallback
+        const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
         const extracted = parseLabel(text);
-        if (extracted.marca && !$('wMarca').value) $('wMarca').value = extracted.marca;
-        if (extracted.modelo && !$('wModelo').value) $('wModelo').value = extracted.modelo;
-        if (extracted.patrimonio && !$('wPatrimonio').value) $('wPatrimonio').value = extracted.patrimonio;
-        if (extracted.serie && (!$('wSerie').value || $('wSerie').value === '-')) $('wSerie').value = extracted.serie;
-        if (extracted.obs && extracted.obs.length) {
+        let iaDados = null;
+        let iaUsada = false;
+        if (groqKey && text && text.trim().length > 5) {
+          try {
+            status.textContent = '🤖 IA Groq analisando texto…';
+            const tipoCtx = ($('wTipo') && $('wTipo').value) || null;
+            iaDados = await extrairCamposComIA(text, tipoCtx);
+            iaUsada = !!iaDados;
+          } catch (errIA) {
+            console.warn('Extração IA falhou, usando parseLabel:', errIA.message);
+          }
+        }
+        // Aplica IA primeiro (mais confiável); parseLabel preenche o que faltou
+        const finalDados = {
+          tipo: (iaDados && iaDados.tipo) || '',
+          marca: (iaDados && iaDados.marca) || extracted.marca || '',
+          modelo: (iaDados && iaDados.modelo) || extracted.modelo || '',
+          patrimonio: (iaDados && iaDados.patrimonio) || extracted.patrimonio || '',
+          serie: (iaDados && iaDados.serie) || extracted.serie || '',
+          observacoes: (iaDados && iaDados.observacoes) || (extracted.obs ? extracted.obs.join(' ') : ''),
+        };
+        // Auto-detect tipo (fallback se IA não informou)
+        if (!finalDados.tipo) {
+          try { finalDados.tipo = detectarTipoPorOCR(text) || ''; } catch (e) {}
+        }
+        // Aplica nos campos só se eles estiverem vazios (preserva input manual)
+        if (finalDados.marca && !$('wMarca').value) $('wMarca').value = finalDados.marca;
+        if (finalDados.modelo && !$('wModelo').value) $('wModelo').value = finalDados.modelo;
+        if (finalDados.patrimonio && !$('wPatrimonio').value) $('wPatrimonio').value = finalDados.patrimonio;
+        if (finalDados.serie && (!$('wSerie').value || $('wSerie').value === '-')) $('wSerie').value = finalDados.serie;
+        if (finalDados.observacoes) {
           const cur = $('wObs').value.trim();
-          const novo = extracted.obs.join(' ');
-          $('wObs').value = cur ? (cur + (cur.endsWith('.') ? ' ' : '. ') + novo) : novo;
+          $('wObs').value = cur ? (cur + (cur.endsWith('.') ? ' ' : '. ') + finalDados.observacoes) : finalDados.observacoes;
+        }
+        // Tipo: sobrescreve se a IA/heurística sugeriu algo diferente do default do passo
+        if (finalDados.tipo && $('wTipo')) {
+          const opcoes = Array.from($('wTipo').options).map(o => o.value);
+          if (opcoes.includes(finalDados.tipo) && $('wTipo').value !== finalDados.tipo) {
+            $('wTipo').value = finalDados.tipo;
+            $('wTipo').style.transition = 'background 0.3s';
+            $('wTipo').style.background = 'rgba(52, 211, 153, 0.15)';
+            setTimeout(() => { $('wTipo').style.background = ''; }, 1500);
+          }
         }
         const achados = [];
-        if (extracted.patrimonio) achados.push('patrimonio');
-        if (extracted.marca) achados.push('marca');
-        if (extracted.modelo) achados.push('modelo');
-        if (extracted.serie) achados.push('serie');
+        if (finalDados.tipo) achados.push('tipo (' + finalDados.tipo + ')');
+        if (finalDados.patrimonio) achados.push('patrimônio');
+        if (finalDados.marca) achados.push('marca');
+        if (finalDados.modelo) achados.push('modelo');
+        if (finalDados.serie) achados.push('série');
+        const prefixo = iaUsada ? '🤖 IA Groq extraiu: ' : 'OK OCR detectou: ';
         if (achados.length) {
-          status.textContent = 'OK OCR detectou: ' + achados.join(', ') + '. Confira/corrija abaixo.' + blurWarn;
+          status.textContent = prefixo + achados.join(', ') + '. Confira/edite abaixo.' + blurWarn;
         } else if (text.trim()) {
           status.textContent = 'OCR leu texto mas nao achou padroes. Preencha manualmente.';
         } else {
@@ -2152,6 +2520,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   };
   $('btnBackList').onclick = () => showScreen('screen-list');
   if ($('btnShare')) $('btnShare').onclick = () => compartilharPlanilha();
+  // v1.0.8: Enviar relatório formatado + planilha pelo WhatsApp
+  if ($('btnWhatsRelatorio')) $('btnWhatsRelatorio').onclick = () => enviarRelatorioWhatsApp();
 
   $('btnGen').onclick = async () => {
     $('btnGen').disabled = true;
@@ -2275,20 +2645,66 @@ async function gerarPDF() {
 }
 
 // ============================================================
-// DETECTOR DE PADRÃO DE PATRIMÔNIO via foto OCR (OpenInvTI)
+// DETECTOR DE PADRÃO DE PATRIMÔNIO via múltiplas fotos + IA (v1.0.8)
 // ============================================================
+const DETECTOR_STATE = { fotos: [], textos: [] };
+
 async function detectarPadraoPorFoto() {
   const sugBox = $('cfgPadroesSugestoes');
-  if (sugBox) {
-    sugBox.style.display = 'block';
-    sugBox.innerHTML = '<div class="info-banner">📸 Abrindo camera para capturar etiqueta de exemplo...</div>';
+  if (!sugBox) return;
+  // Reset estado a cada nova sessão de detecção
+  DETECTOR_STATE.fotos = [];
+  DETECTOR_STATE.textos = [];
+  sugBox.style.display = 'block';
+  renderDetectorUI();
+}
+
+function renderDetectorUI() {
+  const sugBox = $('cfgPadroesSugestoes');
+  if (!sugBox) return;
+  const n = DETECTOR_STATE.fotos.length;
+  const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
+  const modoIA = !!groqKey;
+  let html = '<div class="info-banner">' +
+    '📸 <strong>Detector de padrão multi-foto</strong><br>' +
+    'Fotografe de 3 a 5 etiquetas diferentes da sua empresa para o app aprender o(s) padrão(ões). ' +
+    (modoIA ? '🤖 <strong>Modo IA ativo</strong> (Groq Llama 3.3)' : '🔍 <strong>Modo análise local</strong> (sem IA, configure chave Groq para mais precisão)') +
+    '</div>';
+  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0">';
+  for (let i = 0; i < n; i++) {
+    const t = DETECTOR_STATE.textos[i] || '';
+    const preview = t.split(/\r?\n/).find(l => l.trim().length > 2) || '(sem texto)';
+    html += '<div style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:8px;padding:6px 10px;font-size:11px;color:#7DD3FC;">' +
+      '✓ Foto ' + (i+1) + ': ' + preview.substring(0, 24) + (preview.length > 24 ? '…' : '') +
+      '</div>';
   }
+  html += '</div>';
+  if (n < 5) {
+    html += '<button type="button" class="btn btn-secondary" id="detAddFoto" style="margin-bottom:8px">📷 Tirar foto ' + (n+1) + ' de até 5</button>';
+  }
+  if (n >= 1) {
+    const labelAnalisar = modoIA ? '🤖 Analisar com IA (Groq Llama 3.3)' : '🔍 Analisar localmente (' + n + ' foto' + (n>1?'s':'') + ')';
+    html += '<button type="button" class="btn btn-primary" id="detAnalisar" style="margin-top:4px">' + labelAnalisar + '</button>';
+  }
+  if (n >= 1) {
+    html += '<button type="button" class="btn btn-secondary" id="detReset" style="margin-top:8px;font-size:12px">↺ Limpar e recomeçar</button>';
+  }
+  html += '<div id="detResultados"></div>';
+  sugBox.innerHTML = html;
+  const btnAdd = document.getElementById('detAddFoto');
+  if (btnAdd) btnAdd.onclick = () => detectorAdicionarFoto();
+  const btnAna = document.getElementById('detAnalisar');
+  if (btnAna) btnAna.onclick = () => detectorAnalisar();
+  const btnReset = document.getElementById('detReset');
+  if (btnReset) btnReset.onclick = () => { DETECTOR_STATE.fotos = []; DETECTOR_STATE.textos = []; renderDetectorUI(); };
+}
+
+async function detectorAdicionarFoto() {
   let file = null;
-  if (camSupportsGetUserMedia()) {
-    file = await openCustomCamera('cpu');
+  if (typeof camSupportsGetUserMedia === 'function' && camSupportsGetUserMedia()) {
+    try { file = await openCustomCamera('cpu'); } catch (e) {}
   }
   if (!file) {
-    // Fallback: pede arquivo
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
     fileInput.accept = 'image/*';
@@ -2298,36 +2714,138 @@ async function detectarPadraoPorFoto() {
       fileInput.click();
     });
   }
-  if (!file) {
-    if (sugBox) sugBox.innerHTML = '';
-    return;
-  }
-  if (sugBox) sugBox.innerHTML = '<div class="info-banner">🔍 Lendo etiqueta com OCR...</div>';
+  if (!file) return;
+  const sugBox = $('cfgPadroesSugestoes');
+  if (sugBox) sugBox.innerHTML = '<div class="info-banner">🔍 Lendo etiqueta ' + (DETECTOR_STATE.fotos.length + 1) + ' com OCR...</div>';
   try {
     const { text } = await ocrImage(file, null, null);
-    const candidatos = extrairCandidatosPadrao(text);
-    if (candidatos.length === 0) {
-      sugBox.innerHTML = '<div class="info-banner" style="border-left-color:#F59E0B;color:#FCD34D">⚠️ Nao encontrei padroes claros nesta foto. Tente etiqueta com numero/codigo mais visivel.</div>';
-      return;
-    }
-    sugBox.innerHTML = '<div class="info-banner">✓ Detectei estes padroes possiveis. Toque no que parece o do seu patrimonio:</div>' +
-      candidatos.map((c, i) => (
-        '<button type="button" class="btn btn-secondary cfg-pat-card" data-regex="' + c.regex.replace(/"/g, '&quot;') + '" data-exemplo="' + c.exemplo + '" style="text-align:left; margin-top:8px">' +
-          '<div><strong>' + c.exemplo + '</strong></div>' +
-          '<div style="font-size:11px; opacity:0.7">Formato: ' + c.descricao + '</div>' +
-        '</button>'
-      )).join('');
-    sugBox.querySelectorAll('.cfg-pat-card').forEach((btn) => {
-      btn.onclick = () => {
-        const regex = btn.dataset.regex;
-        $('cfgPatRegex').value = regex;
-        toast('Padrao aplicado: ' + btn.dataset.exemplo);
-        sugBox.innerHTML = '<div class="info-banner" style="border-left-color:#10B981; color:#86EFAC">✓ Padrao salvo: <strong>' + regex + '</strong>. Toque "Salvar e comecar" para confirmar.</div>';
-      };
-    });
+    DETECTOR_STATE.fotos.push(file);
+    DETECTOR_STATE.textos.push(text || '');
+    renderDetectorUI();
   } catch (err) {
-    sugBox.innerHTML = '<div class="info-banner" style="border-left-color:#EF4444">Erro OCR: ' + (err.message || err) + '</div>';
+    toast('Erro OCR: ' + (err.message || err));
+    renderDetectorUI();
   }
+}
+
+async function detectorAnalisar() {
+  const resBox = document.getElementById('detResultados');
+  if (resBox) resBox.innerHTML = '<div class="info-banner" style="margin-top:10px">⏳ Analisando ' + DETECTOR_STATE.textos.length + ' foto(s)...</div>';
+  const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
+  try {
+    let candidatos = [];
+    if (groqKey) {
+      try {
+        candidatos = await sugerirRegexComIA(DETECTOR_STATE.textos);
+      } catch (err) {
+        console.warn('IA Groq falhou, caindo pra análise local:', err.message);
+        if (resBox) resBox.innerHTML = '<div class="info-banner" style="border-left-color:#F59E0B;margin-top:10px">⚠️ IA Groq falhou (' + (err.message||'erro') + '). Usando análise local…</div>';
+        candidatos = analiseLocalMultiFoto(DETECTOR_STATE.textos);
+      }
+    } else {
+      candidatos = analiseLocalMultiFoto(DETECTOR_STATE.textos);
+    }
+    renderDetectorResultados(candidatos);
+  } catch (err) {
+    if (resBox) resBox.innerHTML = '<div class="info-banner" style="border-left-color:#EF4444;margin-top:10px">Erro: ' + (err.message || err) + '</div>';
+  }
+}
+
+function renderDetectorResultados(candidatos) {
+  const resBox = document.getElementById('detResultados');
+  if (!resBox) return;
+  if (!candidatos || candidatos.length === 0) {
+    resBox.innerHTML = '<div class="info-banner" style="border-left-color:#F59E0B;color:#FCD34D;margin-top:10px">⚠️ Não consegui identificar padrões claros. Tente tirar fotos com etiquetas mais legíveis.</div>';
+    return;
+  }
+  let html = '<div class="info-banner" style="margin-top:10px">✓ Toque em <strong>"Aplicar todos"</strong> para usar os padrões abaixo (recomendado), ou escolha um específico:</div>';
+  html += '<button type="button" class="btn btn-primary" id="detAplicarTodos" style="margin-top:8px">✓ Aplicar todos os padrões (' + candidatos.length + ')</button>';
+  html += candidatos.map((c, i) => (
+    '<button type="button" class="btn btn-secondary cfg-pat-card" data-regex="' + c.regex.replace(/"/g, '&quot;') + '" data-exemplo="' + (c.exemplo||'').replace(/"/g,'&quot;') + '" style="text-align:left; margin-top:8px">' +
+      '<div><strong>' + (c.exemplo || 'Padrão ' + (i+1)) + '</strong></div>' +
+      '<div style="font-size:11px; opacity:0.7">Regex: <code>' + c.regex + '</code></div>' +
+      (c.descricao ? '<div style="font-size:11px; opacity:0.6">' + c.descricao + '</div>' : '') +
+    '</button>'
+  )).join('');
+  resBox.innerHTML = html;
+  document.getElementById('detAplicarTodos').onclick = () => {
+    const todos = candidatos.map(c => c.regex).filter(Boolean);
+    $('cfgPatRegex').value = todos.join(' | ');
+    toast('✓ ' + todos.length + ' padrões aplicados! Toque "Salvar e começar".');
+    resBox.innerHTML = '<div class="info-banner" style="border-left-color:#10B981; color:#86EFAC;margin-top:10px">✓ <strong>' + todos.length + ' padrão(ões) salvo(s)</strong>: <code style="font-size:11px">' + todos.join(' | ') + '</code></div>';
+  };
+  resBox.querySelectorAll('.cfg-pat-card').forEach((btn) => {
+    btn.onclick = () => {
+      $('cfgPatRegex').value = btn.dataset.regex;
+      toast('Padrão único aplicado: ' + btn.dataset.exemplo);
+      resBox.innerHTML = '<div class="info-banner" style="border-left-color:#10B981; color:#86EFAC;margin-top:10px">✓ Padrão salvo: <strong>' + btn.dataset.regex + '</strong>. Toque "Salvar e começar".</div>';
+    };
+  });
+}
+
+// v1.0.8: IA Groq — pede pra Llama analisar os textos OCR e sugerir regex
+async function sugerirRegexComIA(textos) {
+  const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
+  if (!groqKey) throw new Error('Chave Groq não configurada');
+  const model = (APP_CONFIG.ai && APP_CONFIG.ai.model) || 'llama-3.3-70b-versatile';
+  const prompt = 'Você é um especialista em regex JavaScript. Analise os seguintes textos extraídos via OCR de etiquetas de patrimônio corporativo e identifique os padrões DE CÓDIGO DE PATRIMÔNIO (números/letras que identificam unicamente o equipamento, geralmente em destaque). Ignore endereços, datas, marcas, números de telefone.\n\n' +
+    textos.map((t, i) => '--- ETIQUETA ' + (i+1) + ' ---\n' + (t || '(vazio)').substring(0, 800)).join('\n\n') +
+    '\n\nRetorne APENAS um JSON válido (sem markdown, sem prefixo) com esta estrutura exata:\n' +
+    '{"padroes":[{"regex":"^F-FAR-\\\\d{5}$","exemplo":"F-FAR-12345","descricao":"Prefixo F-FAR + 5 dígitos"}]}\n\n' +
+    'Regras:\n- Use regex JavaScript válido (com âncoras ^ e $ quando possível).\n- Escape barras invertidas como \\\\\\\\.\n- Inclua todos os padrões DIFERENTES encontrados (máximo 5).\n- Se houver um padrão "só número" com tamanho variável, use \\\\d{N,M}.\n- "descricao" em português.';
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        { role: 'system', content: 'Você responde APENAS com JSON válido, sem texto adicional, sem markdown.' },
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 600,
+      response_format: { type: 'json_object' }
+    })
+  });
+  if (!resp.ok) {
+    const errTxt = await resp.text().catch(() => '');
+    throw new Error('HTTP ' + resp.status + ': ' + errTxt.substring(0, 120));
+  }
+  const data = await resp.json();
+  const content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+  let parsed;
+  try { parsed = JSON.parse(content); }
+  catch (e) {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) { try { parsed = JSON.parse(m[0]); } catch (e2) {} }
+  }
+  if (!parsed || !Array.isArray(parsed.padroes)) throw new Error('Resposta da IA em formato inesperado');
+  return parsed.padroes.map(p => ({
+    regex: (p.regex || '').replace(/\\\\/g, '\\'), // unescape JSON dupla
+    exemplo: p.exemplo || '',
+    descricao: '🤖 IA: ' + (p.descricao || 'padrão detectado'),
+  })).filter(p => p.regex);
+}
+
+// v1.0.8: Análise local multi-foto — combina extração de várias fotos, deduplica por regex
+function analiseLocalMultiFoto(textos) {
+  const todos = [];
+  for (const t of textos) {
+    const c = extrairCandidatosPadrao(t || '');
+    todos.push(...c);
+  }
+  const porRegex = new Map();
+  for (const cand of todos) {
+    const k = cand.regex;
+    if (!porRegex.has(k)) porRegex.set(k, Object.assign({ contagem: 0 }, cand));
+    porRegex.get(k).contagem++;
+  }
+  const ordenados = Array.from(porRegex.values()).sort((a, b) => b.contagem - a.contagem);
+  return ordenados.slice(0, 5).map(c => ({
+    regex: c.regex,
+    exemplo: c.exemplo,
+    descricao: '🔍 Local: ' + c.descricao + (c.contagem > 1 ? ' (apareceu em ' + c.contagem + ' fotos)' : ''),
+  }));
 }
 
 function extrairCandidatosPadrao(text) {

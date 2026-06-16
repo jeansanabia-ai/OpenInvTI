@@ -2,6 +2,30 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.0.8] - 2026-06-16
+
+### Adicionado
+- **🤖 Extração inteligente com IA Groq (Llama 3.3 70B)**: ao informar uma chave Groq na tela de Configurações, o OCR é complementado por uma chamada à IA que extrai tipo, marca, modelo, patrimônio, série e observações de uma só vez, com muito mais precisão do que regex. Chave grátis em console.groq.com/keys.
+- **📸 Detector de padrão multi-foto**: agora o setup aceita de 3 a 5 fotos de etiquetas para identificar padrões. Modo IA Groq (mais preciso) ou modo análise local (offline, ~85% precisão).
+- **🧠 Auto-detecção de tipo do equipamento** via heurística + IA: ao ler a etiqueta, identifica automaticamente se é CPU, Monitor, Notebook, Telefone IP, Impressora etc.
+- **🔢 Múltiplos regex de patrimônio**: o campo aceita vários padrões separados por `|` (ex: `^F-FAR-\d{5}$ | ^\d{6}$`). O parser tenta cada um na ordem.
+- **🧭 Navegação intuitiva**: cards do hero (Sessões, Itens, Usuários) e badge do header agora são clicáveis. Abrem um modal com a listagem detalhada correspondente.
+- **💬 Botão "Relatório WhatsApp"** na tela de finalização: gera um texto formatado (setor, data, total de itens, breakdown por tipo, usuários únicos) e dispara o compartilhamento com a planilha .xlsx em anexo via Web Share API.
+
+### Mudado
+- **WhatsApp share** agora envia somente o arquivo (sem link do GitHub no texto).
+- **Placeholder do campo Setor** trocado de "Ex.: Metrologia / Validação / Almoxarifado" para o mais direto "Informe o setor".
+- **Ícone do header** trocado de ⚡ (raio) para 📋 (prancheta), mais coerente com inventário.
+- Texto de status do OCR ganha prefixo "🤖 IA Groq extraiu:" quando a IA é usada.
+- Cache do SW: `openinvti-v1.0.8-prod`.
+
+### Técnico
+- Função `extrairCamposComIA()` chama `api.groq.com/openai/v1/chat/completions` com `response_format: json_object`.
+- Função `detectarTipoPorOCR()` cobre 60+ palavras-chave em PT/EN para os 6 tipos suportados.
+- Função `abrirHistoricoModal(tipo)` renderiza listagem detalhada de sessões/itens/usuários.
+- DEFAULT_CONFIG ganhou bloco `ai: { groq_key, model }` persistido em localStorage.
+- Fallback automático: se IA falhar ou não houver chave, usa `parseLabel` + heurísticas locais.
+
 ## [1.0.7] - 2026-06-10
 
 ### Corrigido (bugs reportados no primeiro teste em produção)
