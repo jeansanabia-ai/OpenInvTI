@@ -3,6 +3,28 @@
  */
 
 // ============================================================
+// PROXY IA — v1.0.9 — Cloudflare Worker que protege a chave Groq
+// ============================================================
+// Para distribuir o app sem expor a chave Groq, hospedamos um worker
+// Cloudflare que adiciona a auth header e encaminha pra api.groq.com.
+// Deixe vazio ('') pra desabilitar o proxy e voltar ao modo "chave manual".
+// Veja SETUP_CLOUDFLARE.md para o passo a passo do deploy.
+const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // TODO: substitua por 'https://openinvti.SEU-USER.workers.dev' após o deploy
+
+// ============================================================
+// PRESETS DE EMPRESA — v1.0.9 — aplicados via ?preset=NOME na URL
+// ============================================================
+const EMPRESA_PRESETS = {
+  far: {
+    empresa: { nome: 'Farmanguinhos', titulo: 'INVENTARIO DE EQUIPAMENTOS DE TI' },
+    patrimonio: {
+      regex_padroes: ['^F-FAR-\\d{5}$', '^\\d{6}$'],
+      exemplo: 'F-FAR-12345 ou 123456',
+    },
+  },
+};
+
+// ============================================================
 // CONFIGURAÇÃO (carregada de localStorage, fallback config.json)
 // ============================================================
 const DEFAULT_CONFIG = {
@@ -18,6 +40,25 @@ const DEFAULT_CONFIG = {
   ai: { groq_key: '', model: 'llama-3.3-70b-versatile' }, // v1.0.8: detecção de regex com IA
   setup_done: false,
 };
+
+// v1.0.9: helper — verdadeiro se IA está disponível (via proxy ou chave manual)
+function iaDisponivel() {
+  if (PROXY_URL && PROXY_URL.startsWith('http')) return true;
+  if (APP_CONFIG && APP_CONFIG.ai && APP_CONFIG.ai.groq_key) return true;
+  return false;
+}
+
+// v1.0.9: aplica preset de empresa por nome (chamado via ?preset=)
+function aplicarPresetEmpresa(nomePreset) {
+  const preset = EMPRESA_PRESETS[(nomePreset || '').toLowerCase()];
+  if (!preset) return false;
+  APP_CONFIG.empresa = Object.assign({}, APP_CONFIG.empresa || {}, preset.empresa || {});
+  if (preset.patrimonio) APP_CONFIG.patrimonio = Object.assign({}, APP_CONFIG.patrimonio || {}, preset.patrimonio);
+  if (preset.marcas) APP_CONFIG.marcas = preset.marcas;
+  APP_CONFIG.setup_done = true; // pula tela de setup
+  saveConfig(APP_CONFIG);
+  return true;
+}
 
 function loadConfig() {
   try {
@@ -211,6 +252,17 @@ function updateTopbar() {
   const badge = $('topBadge');
   badge.style.display = total > 0 ? 'inline-flex' : 'none';
   badge.textContent = `${total} ${total === 1 ? 'item' : 'itens'}`;
+  // v1.0.9: Badge "IA" no header quando proxy ou chave Groq estão ativos
+  const iaBadge = document.getElementById('iaBadge');
+  if (iaBadge) {
+    if (iaDisponivel()) {
+      iaBadge.style.display = 'inline-flex';
+      const viaProxy = PROXY_URL && PROXY_URL.startsWith('http');
+      iaBadge.title = viaProxy ? 'IA ativa via Cloudflare Workers (chave protegida)' : 'IA ativa via chave Groq local';
+    } else {
+      iaBadge.style.display = 'none';
+    }
+  }
   // v1.0.8: badge clicável -> abre lista de itens da sessão atual
   if (!badge.dataset.bound) {
     badge.classList.add('clickable');
@@ -2106,12 +2158,11 @@ async function enviarRelatorioWhatsApp() {
   window.open(wppUrl, '_blank');
 }
 
-// v1.0.8: Extração inteligente de TODOS os campos via IA Groq
+// v1.0.8/v1.0.9: Extração inteligente de TODOS os campos via IA
 // Recebe o texto OCR e retorna { tipo, marca, modelo, patrimonio, serie, observacoes }
+// v1.0.9: usa Cloudflare proxy quando PROXY_URL setado (chave fica protegida no worker)
 async function extrairCamposComIA(textoOCR, contextoTipo) {
-  const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
-  if (!groqKey) return null;
-  const model = (APP_CONFIG.ai && APP_CONFIG.ai.model) || 'llama-3.3-70b-versatile';
+  if (!iaDisponivel()) return null;
   const padroes = (APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.regex_padroes) || [];
   const marcasConhecidas = (APP_CONFIG.marcas || []).slice(0, 30).join(', ');
   const prompt = 'Você é um assistente especialista em inventário de TI. Analise o texto abaixo (extraído via OCR de uma etiqueta de equipamento corporativo) e extraia os campos do equipamento.\n\n' +
@@ -2128,26 +2179,13 @@ async function extrairCamposComIA(textoOCR, contextoTipo) {
     '- "serie" é o S/N do fabricante, geralmente alfanumérico longo.\n' +
     '- "observacoes" pode ter info adicional relevante (etiqueta DDE/CDT, nº de bem, departamento, etc.) — máximo 80 chars.\n' +
     '- NÃO invente dados. Se não encontrou, retorne "".';
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: 'system', content: 'Você responde APENAS com JSON válido, sem markdown, sem texto adicional.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 400,
-      response_format: { type: 'json_object' }
-    })
-  });
-  if (!resp.ok) {
-    const errTxt = await resp.text().catch(() => '');
-    throw new Error('Groq HTTP ' + resp.status + ': ' + errTxt.substring(0, 100));
-  }
-  const data = await resp.json();
-  const content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '{}';
+  const content = await chamarIA(
+    [
+      { role: 'system', content: 'Você responde APENAS com JSON válido, sem markdown, sem texto adicional.' },
+      { role: 'user', content: prompt }
+    ],
+    { temperature: 0.1, max_tokens: 400 }
+  );
   let parsed;
   try { parsed = JSON.parse(content); }
   catch (e) {
@@ -2190,6 +2228,25 @@ function detectarTipoPorOCR(texto) {
 // Listeners
 // ============================================================
 window.addEventListener('DOMContentLoaded', async () => {
+  // v1.0.9: Aplica preset de empresa via ?preset=XXX na URL antes de qualquer coisa
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const preset = urlParams.get('preset');
+    if (preset && EMPRESA_PRESETS[preset.toLowerCase()] && !APP_CONFIG.setup_done) {
+      aplicarPresetEmpresa(preset);
+      // Limpa o parâmetro da URL pra não reaplicar em refresh
+      try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
+    }
+  } catch (e) { console.warn('Erro aplicando preset:', e); }
+
+  // v1.0.9: Se proxy de IA está hardcoded, esconde campo da chave Groq do setup
+  try {
+    if (typeof PROXY_URL === 'string' && PROXY_URL.startsWith('http')) {
+      const grpKeyField = document.getElementById('cfgGroqKey');
+      if (grpKeyField && grpKeyField.parentElement) grpKeyField.parentElement.style.display = 'none';
+    }
+  } catch (e) {}
+
   // FAILSAFE: garante que pelo menos uma tela está ativa, mesmo se algo travar depois
   try {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -2783,36 +2840,54 @@ function renderDetectorResultados(candidatos) {
   });
 }
 
-// v1.0.8: IA Groq — pede pra Llama analisar os textos OCR e sugerir regex
+// v1.0.9: chamada genérica à IA — usa Cloudflare proxy (PROXY_URL) se setado,
+// caso contrário usa a chave Groq do localStorage.
+async function chamarIA(messages, opts) {
+  opts = opts || {};
+  const model = opts.model || (APP_CONFIG.ai && APP_CONFIG.ai.model) || 'llama-3.3-70b-versatile';
+  const payload = {
+    model: model,
+    messages: messages,
+    temperature: opts.temperature ?? 0.2,
+    max_tokens: opts.max_tokens || 600,
+    response_format: opts.response_format || { type: 'json_object' },
+  };
+  let url, headers;
+  if (PROXY_URL && PROXY_URL.startsWith('http')) {
+    // Modo proxy: chave fica no Cloudflare Worker
+    url = PROXY_URL.replace(/\/+$/, '') + '/chat';
+    headers = { 'Content-Type': 'application/json', 'X-OpenInvTI-Client': '1.0.9' };
+  } else {
+    // Modo legado: chave manual do usuário
+    const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
+    if (!groqKey) throw new Error('IA indisponível: nem proxy nem chave Groq configurados');
+    url = 'https://api.groq.com/openai/v1/chat/completions';
+    headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey };
+  }
+  const resp = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(payload) });
+  if (!resp.ok) {
+    const errTxt = await resp.text().catch(() => '');
+    throw new Error('HTTP ' + resp.status + ': ' + errTxt.substring(0, 200));
+  }
+  const data = await resp.json();
+  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+}
+
+// v1.0.8: IA — pede pra Llama analisar os textos OCR e sugerir regex
 async function sugerirRegexComIA(textos) {
-  const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
-  if (!groqKey) throw new Error('Chave Groq não configurada');
-  const model = (APP_CONFIG.ai && APP_CONFIG.ai.model) || 'llama-3.3-70b-versatile';
+  if (!iaDisponivel()) throw new Error('IA não configurada');
   const prompt = 'Você é um especialista em regex JavaScript. Analise os seguintes textos extraídos via OCR de etiquetas de patrimônio corporativo e identifique os padrões DE CÓDIGO DE PATRIMÔNIO (números/letras que identificam unicamente o equipamento, geralmente em destaque). Ignore endereços, datas, marcas, números de telefone.\n\n' +
     textos.map((t, i) => '--- ETIQUETA ' + (i+1) + ' ---\n' + (t || '(vazio)').substring(0, 800)).join('\n\n') +
     '\n\nRetorne APENAS um JSON válido (sem markdown, sem prefixo) com esta estrutura exata:\n' +
     '{"padroes":[{"regex":"^F-FAR-\\\\d{5}$","exemplo":"F-FAR-12345","descricao":"Prefixo F-FAR + 5 dígitos"}]}\n\n' +
     'Regras:\n- Use regex JavaScript válido (com âncoras ^ e $ quando possível).\n- Escape barras invertidas como \\\\\\\\.\n- Inclua todos os padrões DIFERENTES encontrados (máximo 5).\n- Se houver um padrão "só número" com tamanho variável, use \\\\d{N,M}.\n- "descricao" em português.';
-  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
-    body: JSON.stringify({
-      model: model,
-      messages: [
-        { role: 'system', content: 'Você responde APENAS com JSON válido, sem texto adicional, sem markdown.' },
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.2,
-      max_tokens: 600,
-      response_format: { type: 'json_object' }
-    })
-  });
-  if (!resp.ok) {
-    const errTxt = await resp.text().catch(() => '');
-    throw new Error('HTTP ' + resp.status + ': ' + errTxt.substring(0, 120));
-  }
-  const data = await resp.json();
-  const content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+  const content = await chamarIA(
+    [
+      { role: 'system', content: 'Você responde APENAS com JSON válido, sem texto adicional, sem markdown.' },
+      { role: 'user', content: prompt }
+    ],
+    { temperature: 0.2, max_tokens: 600 }
+  );
   let parsed;
   try { parsed = JSON.parse(content); }
   catch (e) {

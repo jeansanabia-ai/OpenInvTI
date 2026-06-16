@@ -2,6 +2,31 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.0.9] - 2026-06-16
+
+### Adicionado
+- **🔒 Proxy Cloudflare Workers para IA Groq**: arquivo `cloudflare-worker.js` que serve de intermediário entre o app e a API Groq, mantendo a chave protegida como variável de ambiente encriptada. Permite distribuir o app sem expor credenciais. Free tier: 100.000 req/dia.
+- **🏷️ Presets de empresa via URL parameter**: `?preset=far` configura automaticamente nome da empresa (Farmanguinhos), regex de patrimônio (`^F-FAR-\d{5}$ | ^\d{6}$`) e pula tela de setup. Outros presets podem ser adicionados em `EMPRESA_PRESETS`.
+- **🤖 Badge "IA" no header**: indicador visual discreto no canto superior direito quando IA está ativa (proxy ou chave manual). Glow animado em verde/ciano.
+- **SETUP_CLOUDFLARE.md**: guia passo a passo (~15 min) para deploy do worker, configuração da env var GROQ_KEY e integração com o app.
+
+### Mudado
+- **Função `chamarIA()`** unifica chamadas para IA: usa proxy se `PROXY_URL` setado, fallback para chave Groq local caso contrário.
+- **Campo "Chave Groq" no setup é ocultado** automaticamente quando `PROXY_URL` está configurado (usuário não precisa fazer nada).
+- **`extrairCamposComIA()` e `sugerirRegexComIA()`** refatoradas para usar a nova função `chamarIA()`.
+- Função `iaDisponivel()` checa proxy ou chave para ativar features de IA.
+- Cache do SW: `openinvti-v1.0.9-prod`.
+
+### Técnico
+- `PROXY_URL` é uma constante no topo do `app.js`, vazia por padrão (modo legado).
+- Para ativar: substitui pelo URL do worker Cloudflare e dá push.
+- Worker tem rate limit de 200 req/hora por IP e whitelist de models para evitar abuso de custo.
+- `EMPRESA_PRESETS` permite múltiplas configurações pré-prontas (escalável para outras empresas).
+
+### Distribuição
+- Link para colegas Farmanguinhos: `https://jeansanabia-ai.github.io/OpenInvTI/?preset=far`
+- Após primeira abertura, app fica configurado permanentemente.
+
 ## [1.0.8] - 2026-06-16
 
 ### Adicionado
