@@ -9,7 +9,7 @@
 // Cloudflare que adiciona a auth header e encaminha pra api.groq.com.
 // Deixe vazio ('') pra desabilitar o proxy e voltar ao modo "chave manual".
 // Veja SETUP_CLOUDFLARE.md para o passo a passo do deploy.
-const PROXY_URL = ''; // TODO: substitua por 'https://openinvti.SEU-USER.workers.dev' após o deploy
+const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // TODO: substitua por 'https://openinvti.SEU-USER.workers.dev' após o deploy
 
 // ============================================================
 // PRESETS DE EMPRESA — v1.0.9 — aplicados via ?preset=NOME na URL
