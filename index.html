@@ -222,32 +222,28 @@
         </div>
       </div>
 
-      <!-- Campo Usuário (passo 6) — v1.0.10: redesenhado, opcional, com chips rápidos -->
+      <!-- Campo Usuário (passo 6) — v1.0.11: 3 opções claras (sem Multiusuário) -->
       <div id="wizFieldsUser" style="display:none">
         <h3 class="step-title-user">Quem usa essa estação?</h3>
-        <p class="step-sub-user">Identifique o responsável OU marque como compartilhada. Este campo é opcional.</p>
+        <p class="step-sub-user">Escolha uma opção abaixo OU digite o nome. Este campo é opcional.</p>
 
-        <div class="user-quick-chips">
-          <button type="button" class="user-chip" data-quick="">
+        <div class="user-quick-chips user-quick-chips-3">
+          <button type="button" class="user-chip" data-quick="" title="Uma pessoa específica usa essa estação. Digite o nome abaixo.">
             <span class="chip-icon">👤</span>
-            <span>Pessoa específica</span>
+            <span>Pessoa<br/>específica</span>
           </button>
-          <button type="button" class="user-chip" data-quick="Estação compartilhada">
+          <button type="button" class="user-chip" data-quick="Estação compartilhada" title="Mais de uma pessoa usa (ex: balcão de atendimento, sala de reuniões).">
             <span class="chip-icon">👥</span>
-            <span>Compartilhada</span>
+            <span>Estação<br/>compartilhada</span>
           </button>
-          <button type="button" class="user-chip" data-quick="Sem usuário fixo">
+          <button type="button" class="user-chip" data-quick="Sem usuário fixo" title="Máquina sem responsável definido (ex: equipamento de laboratório, produção).">
             <span class="chip-icon">🧰</span>
-            <span>Sem usuário</span>
-          </button>
-          <button type="button" class="user-chip" data-quick="Multiusuário">
-            <span class="chip-icon">🔄</span>
-            <span>Multiusuário</span>
+            <span>Sem<br/>usuário fixo</span>
           </button>
         </div>
 
         <div class="field user-field-input">
-          <label for="wUsuario">Nome do responsável <span class="opt-label">(opcional)</span></label>
+          <label for="wUsuario">Nome do usuário <span class="opt-label">(opcional)</span></label>
           <input type="text" id="wUsuario" list="usuariosList" placeholder="Digite o nome completo ou escolha uma opção acima" autocomplete="off" />
           <datalist id="usuariosList"></datalist>
         </div>

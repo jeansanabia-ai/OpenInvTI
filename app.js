@@ -282,7 +282,13 @@ function updateTopbar() {
   }
 }
 
-// v1.0.8: Modal de histórico — abre lista clicando em qualquer contador
+// v1.0.11: helper — fecha modal e abre wizard pra editar
+function editarSessaoDoModal(sessionId) {
+  const m = document.getElementById('historyModal');
+  if (m) m.remove();
+  if (typeof startWizard === 'function') startWizard(sessionId);
+}
+// v1.0.8/v1.0.11: Modal de histórico — abre lista clicando em qualquer contador
 function abrirHistoricoModal(tipo) {
   const old = document.getElementById('historyModal');
   if (old) old.remove();
@@ -295,21 +301,29 @@ function abrirHistoricoModal(tipo) {
   const itensAtuais = STATE.items || [];
   const historico = STATE.historicoSessoes || [];
 
+  // v1.0.11: helper de item clicável com botão editar
+  function renderItem(it, indice) {
+    const sid = it.sessionId || ('legacy-' + (it.usuario || ''));
+    return '<div class="hm-item hm-item-editable" data-sid="' + sid + '">' +
+      '<div class="hm-item-body">' +
+        '<strong>' + (indice ? indice + '. ' : '') + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
+        '<div class="hm-sub">' +
+          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
+          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
+          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
+        '</div>' +
+      '</div>' +
+      '<button type="button" class="hm-item-edit" data-sid="' + sid + '" title="Editar esta estação">✏️</button>' +
+    '</div>';
+  }
+
   if (tipo === 'itens-atuais') {
     titulo = 'Itens da sessão atual';
     icone = '📦';
     if (itensAtuais.length === 0) {
       conteudo = '<div class="hm-empty">Nenhum item registrado nesta sessão ainda.</div>';
     } else {
-      conteudo = itensAtuais.map((it, i) => (
-        '<div class="hm-item">' +
-        '<strong>' + (i+1) + '. ' + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
-        '<div class="hm-sub">' +
-          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
-          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
-          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
-        '</div></div>'
-      )).join('');
+      conteudo = itensAtuais.map((it, i) => renderItem(it, i+1)).join('');
     }
   } else if (tipo === 'sessoes') {
     titulo = 'Sessões / Inventários';
@@ -325,9 +339,13 @@ function abrirHistoricoModal(tipo) {
     if (Object.keys(sessoesAgrupadas).length > 0) {
       partes.push('<div style="font-size:12px;color:#67E8F9;font-weight:700;margin:6px 0">▸ Em andamento</div>');
       partes.push(Object.entries(sessoesAgrupadas).map(([key, s]) => (
-        '<div class="hm-item">' +
-        '<strong>' + (s.usuario || '(sem usuário)') + '</strong>' +
-        '<div class="hm-sub">' + s.qtd + ' item(ns) · ' + Array.from(s.tipos).join(', ') + '</div></div>'
+        '<div class="hm-item hm-item-editable" data-sid="' + key + '">' +
+          '<div class="hm-item-body">' +
+            '<strong>' + (s.usuario || '(sem usuário)') + '</strong>' +
+            '<div class="hm-sub">' + s.qtd + ' item(ns) · ' + Array.from(s.tipos).join(', ') + '</div>' +
+          '</div>' +
+          '<button type="button" class="hm-item-edit" data-sid="' + key + '" title="Editar estação">✏️</button>' +
+        '</div>'
       )).join(''));
     }
     if (historico.length > 0) {
@@ -351,15 +369,7 @@ function abrirHistoricoModal(tipo) {
     const partes = [];
     if (itensAtuais.length > 0) {
       partes.push('<div style="font-size:12px;color:#67E8F9;font-weight:700;margin:6px 0">▸ Inventário atual (' + itensAtuais.length + ')</div>');
-      partes.push(itensAtuais.map((it, i) => (
-        '<div class="hm-item">' +
-        '<strong>' + (i+1) + '. ' + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
-        '<div class="hm-sub">' +
-          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
-          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
-          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
-        '</div></div>'
-      )).join(''));
+      partes.push(itensAtuais.map((it, i) => renderItem(it, i+1)).join(''));
     }
     if (historico.length > 0) {
       const totHist = historico.reduce((acc, h) => acc + (h.totalItens || 0), 0);
@@ -399,6 +409,15 @@ function abrirHistoricoModal(tipo) {
   document.body.appendChild(overlay);
   document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  // v1.0.11: clica em item OU no lápis ✏️ → abre wizard pra editar a estação
+  overlay.querySelectorAll('.hm-item-edit, .hm-item-editable').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sid = (e.currentTarget.dataset && e.currentTarget.dataset.sid)
+                 || (e.target.closest('[data-sid]') && e.target.closest('[data-sid]').dataset.sid);
+      if (sid) editarSessaoDoModal(sid);
+    });
+  });
 }
 
 // ============================================================
@@ -1872,9 +1891,10 @@ async function gerarPlanilha() {
   // ===== Salva e dispara download =====
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  // v1.0.11: formato AAAA-MM-DD_NomeDoSetor.xlsx (cronológico ordenado, sem prefixo)
   const nomeSet = (STATE.setor || 'Setor').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dataF = (STATE.data || todayIso()).replace(/-/g, '');
-  const nomeArquivo = 'Inventario_TI_' + nomeSet + '_' + dataF + '.xlsx';
+  const dataIso = (STATE.data || todayIso()); // já vem yyyy-mm-dd
+  const nomeArquivo = dataIso + '_' + nomeSet + '.xlsx';
 
   // Guarda globalmente pra botao de compartilhar usar (ArrayBuffer, mais robusto)
   window._lastPlanilhaBuf = buf;
@@ -2142,16 +2162,20 @@ function abrirItensPorTipo(tipo) {
   if (items.length === 0) {
     conteudo = '<div class="hm-empty">Nenhum ' + tipo + ' registrado nesta sessão.</div>';
   } else {
-    conteudo = items.map((it, i) => (
-      '<div class="hm-item">' +
-        '<strong>' + (i+1) + '. ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
-        '<div class="hm-sub">' +
-          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
-          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
-          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
+    conteudo = items.map((it, i) => {
+      const sid = it.sessionId || ('legacy-' + (it.usuario || ''));
+      return '<div class="hm-item hm-item-editable" data-sid="' + sid + '">' +
+        '<div class="hm-item-body">' +
+          '<strong>' + (i+1) + '. ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
+          '<div class="hm-sub">' +
+            (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
+            (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
+            (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
+          '</div>' +
         '</div>' +
-      '</div>'
-    )).join('');
+        '<button type="button" class="hm-item-edit" data-sid="' + sid + '" title="Editar esta estação">✏️</button>' +
+      '</div>';
+    }).join('');
   }
   overlay.innerHTML =
     '<div class="history-modal">' +
@@ -2162,6 +2186,15 @@ function abrirItensPorTipo(tipo) {
   document.body.appendChild(overlay);
   document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  // v1.0.11: clicar em item OU no lápis ✏️ → abre wizard pra editar
+  overlay.querySelectorAll('.hm-item-edit, .hm-item-editable').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const sid = (e.currentTarget.dataset && e.currentTarget.dataset.sid)
+                 || (e.target.closest('[data-sid]') && e.target.closest('[data-sid]').dataset.sid);
+      if (sid) editarSessaoDoModal(sid);
+    });
+  });
 }
 
 // v1.0.8/v1.0.10: Monta um relatório formatado em texto e dispara WhatsApp + planilha
@@ -2433,6 +2466,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Renderiza dashboard com historico carregado (mesmo sem inventario atual)
   updateDashboard();
   $('dataInv').value = todayIso();
+
+  // v1.0.11: Auto-gerar título do inventário baseado no setor digitado
+  // Só sobrescreve se o usuário NÃO editou manualmente o título (rastreado via dataset.manual)
+  if ($('setorInv') && $('tituloInv')) {
+    const setorEl = $('setorInv');
+    const tituloEl = $('tituloInv');
+    // Detecta edição manual do título — a partir daí, não sobrescreve mais
+    tituloEl.addEventListener('input', () => {
+      tituloEl.dataset.manual = '1';
+    });
+    setorEl.addEventListener('input', () => {
+      if (tituloEl.dataset.manual === '1') return;
+      const s = setorEl.value.trim();
+      tituloEl.value = s ? ('INVENTÁRIO DO SETOR ' + s.toUpperCase()) : 'INVENTARIO DE EQUIPAMENTOS DE TI';
+    });
+  }
 
   $('btnStart').onclick = () => {
     const data = $('dataInv').value;
@@ -2835,9 +2884,10 @@ async function gerarPDF() {
     },
   });
 
+  // v1.0.11: formato AAAA-MM-DD_NomeDoSetor.pdf
   const nomeSet = (STATE.setor || 'Setor').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const dataF = (STATE.data || todayIso()).replace(/-/g, '');
-  doc.save('Inventario_TI_' + nomeSet + '_' + dataF + '.pdf');
+  const dataIso = (STATE.data || todayIso());
+  doc.save(dataIso + '_' + nomeSet + '.pdf');
   toast('PDF gerado!');
 }
 
