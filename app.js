@@ -9,7 +9,7 @@
 // Cloudflare que adiciona a auth header e encaminha pra api.groq.com.
 // Deixe vazio ('') pra desabilitar o proxy e voltar ao modo "chave manual".
 // Veja SETUP_CLOUDFLARE.md para o passo a passo do deploy.
-const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // TODO: substitua por 'https://openinvti.SEU-USER.workers.dev' após o deploy
+const PROXY_URL = ''; // TODO: substitua por 'https://openinvti.SEU-USER.workers.dev' após o deploy
 
 // ============================================================
 // PRESETS DE EMPRESA — v1.0.9 — aplicados via ?preset=NOME na URL
@@ -79,6 +79,7 @@ let APP_CONFIG = loadConfig();
 const STATE = {
   data: '',         // yyyy-mm-dd
   setor: '',
+  analista: '',     // v1.0.10: analista responsável pelo inventário
   titulo: '',
   // items: cada item tem sessionId = id da sessão (1 usuário e seus equipamentos)
   items: [],        // {id, sessionId, tipo, marca, modelo, patrimonio, serie, usuario, ramal, obs}
@@ -1015,7 +1016,13 @@ function wizardRender() {
   $('wizFieldsEquip').style.display = isEquip ? 'block' : 'none';
   $('wizFieldsRamal').style.display = isRamal ? 'block' : 'none';
   $('wizFieldsUser').style.display = isUser ? 'block' : 'none';
-  $('wizPhotoBox').style.display = (isEquip || isUser) ? 'block' : 'none';
+  // v1.0.10: no passo Usuário, esconder photo box (foto da tela raramente funciona).
+  // Usuário pode digitar manualmente ou escolher um chip rápido.
+  $('wizPhotoBox').style.display = isEquip ? 'block' : 'none';
+  // v1.0.10: popular datalist e chips na entrada do step de usuário
+  if (isUser) {
+    try { popularUsuariosDatalist(); inicializarChipsUsuario(); } catch (e) {}
+  }
 
   // Limpar foto e status
   $('wizPhoto').src = '';
@@ -2079,12 +2086,91 @@ function abrirShareModal() {
   };
 }
 
-// v1.0.8: Monta um relatório formatado em texto e dispara WhatsApp + planilha
+// v1.0.10: Persistência de analistas e usuários frequentes — pra autocomplete
+function registrarAnalista(nome) {
+  if (!nome || nome.length < 2) return;
+  try {
+    localStorage.setItem('openinvti-ultimo-analista', nome);
+    const lista = JSON.parse(localStorage.getItem('openinvti-analistas') || '[]');
+    const i = lista.indexOf(nome);
+    if (i >= 0) lista.splice(i, 1);
+    lista.unshift(nome);
+    localStorage.setItem('openinvti-analistas', JSON.stringify(lista.slice(0, 20)));
+  } catch (e) {}
+}
+function popularAnalistasDatalist() {
+  const dl = document.getElementById('analistasList');
+  if (!dl) return;
+  try {
+    const lista = JSON.parse(localStorage.getItem('openinvti-analistas') || '[]');
+    dl.innerHTML = lista.map(n => '<option value="' + n.replace(/"/g, '&quot;') + '"></option>').join('');
+  } catch (e) {}
+}
+function popularUsuariosDatalist() {
+  const dl = document.getElementById('usuariosList');
+  if (!dl) return;
+  const usuariosUsados = new Set();
+  for (const it of (STATE.items || [])) if (it.usuario) usuariosUsados.add(it.usuario);
+  for (const h of (STATE.historicoSessoes || [])) {
+    if (Array.isArray(h.usuarios)) h.usuarios.forEach(u => usuariosUsados.add(u));
+  }
+  ['Estação compartilhada', 'Sem usuário fixo', 'Multiusuário'].forEach(u => usuariosUsados.add(u));
+  dl.innerHTML = Array.from(usuariosUsados).sort().map(n => '<option value="' + n.replace(/"/g, '&quot;') + '"></option>').join('');
+}
+function inicializarChipsUsuario() {
+  const wrap = document.getElementById('wizFieldsUser');
+  if (!wrap) return;
+  wrap.querySelectorAll('.user-chip').forEach((c) => c.classList.remove('active'));
+  const valAtual = ($('wUsuario') && $('wUsuario').value || '').trim();
+  if (valAtual) {
+    const match = wrap.querySelector('.user-chip[data-quick="' + valAtual.replace(/"/g, '\\"') + '"]');
+    if (match) match.classList.add('active');
+  }
+}
+
+// v1.0.10: Modal genérico — abre lista de itens por tipo
+function abrirItensPorTipo(tipo) {
+  const old = document.getElementById('historyModal');
+  if (old) old.remove();
+  const items = (STATE.items || []).filter(it => (it.tipo || 'Outro') === tipo);
+  const overlay = document.createElement('div');
+  overlay.id = 'historyModal';
+  overlay.className = 'history-modal-bg';
+  const iconeMap = { 'CPU': '🖥️', 'Monitor': '🖼️', 'Telefone IP': '📞', 'Notebook': '💻', 'Impressora': '🖨️', 'Outro': '📦' };
+  const icone = iconeMap[tipo] || '📦';
+  let conteudo;
+  if (items.length === 0) {
+    conteudo = '<div class="hm-empty">Nenhum ' + tipo + ' registrado nesta sessão.</div>';
+  } else {
+    conteudo = items.map((it, i) => (
+      '<div class="hm-item">' +
+        '<strong>' + (i+1) + '. ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
+        '<div class="hm-sub">' +
+          (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
+          (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
+          (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
+        '</div>' +
+      '</div>'
+    )).join('');
+  }
+  overlay.innerHTML =
+    '<div class="history-modal">' +
+      '<button class="hm-close" id="hmCloseBtn">Fechar ×</button>' +
+      '<h3>' + icone + ' ' + tipo + ' (' + items.length + ')</h3>' +
+      conteudo +
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
+// v1.0.8/v1.0.10: Monta um relatório formatado em texto e dispara WhatsApp + planilha
 function montarRelatorioTexto() {
   const setor = STATE.setor || '(sem setor)';
   const data = fmtDateBR(STATE.data || todayIso());
   const empresa = (APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'Empresa';
   const titulo = STATE.titulo || (APP_CONFIG.empresa && APP_CONFIG.empresa.titulo) || 'Inventário de TI';
+  const analista = STATE.analista || '';
   const items = STATE.items || [];
   const total = items.length;
   const porTipo = {};
@@ -2100,6 +2186,7 @@ function montarRelatorioTexto() {
   linhas.push('🏢 *Empresa:* ' + empresa);
   linhas.push('📍 *Setor:* ' + setor);
   linhas.push('📅 *Data:* ' + data);
+  if (analista) linhas.push('👤 *Analista responsável:* ' + analista);
   linhas.push('');
   linhas.push('📦 *Total de itens:* ' + total);
   linhas.push('👥 *Usuários únicos:* ' + usuariosUnicos);
@@ -2354,6 +2441,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!setor) { toast('Informe o setor.'); return; }
     STATE.data = data;
     STATE.setor = setor;
+    // v1.0.10: persiste analista responsável (opcional)
+    if ($('analistaInv')) {
+      const analista = $('analistaInv').value.trim();
+      STATE.analista = analista;
+      if (analista) registrarAnalista(analista);
+    }
     STATE.titulo = $('tituloInv').value.trim();
     STATE.items = [];
     saveState();
@@ -2362,6 +2455,34 @@ window.addEventListener('DOMContentLoaded', async () => {
     showScreen('screen-list');
     warmupOcr();
   };
+  // v1.0.10: popula datalist do analista ao abrir tela inicial e restaura último valor
+  if ($('analistaInv')) {
+    popularAnalistasDatalist();
+    if (STATE.analista) {
+      $('analistaInv').value = STATE.analista;
+    } else {
+      const ultimoAnalista = localStorage.getItem('openinvti-ultimo-analista');
+      if (ultimoAnalista) $('analistaInv').value = ultimoAnalista;
+    }
+  }
+  // v1.0.10: botão Voltar na tela de lista — volta pro dashboard inicial
+  if ($('listBack')) $('listBack').onclick = () => showScreen('screen-start');
+  // v1.0.10: chips rápidos da tela de usuário
+  if ($('wizFieldsUser')) {
+    $('wizFieldsUser').querySelectorAll('.user-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const val = btn.dataset.quick || '';
+        if ($('wUsuario')) {
+          $('wUsuario').value = val;
+          $('wUsuario').focus();
+          if (val) $('wUsuario').blur(); // se for um quick pré-preenchido, fecha teclado
+        }
+        // Marca o chip ativo
+        $('wizFieldsUser').querySelectorAll('.user-chip').forEach((c) => c.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+  }
 
   $('btnAdd').onclick = () => { startWizard(null); };
   $('btnCancel') && ($('btnCancel').onclick = () => { STATE.editingId = null; showScreen('screen-list'); });
@@ -2569,13 +2690,32 @@ window.addEventListener('DOMContentLoaded', async () => {
     $('rCpu').textContent = STATE.items.filter((i) => i.tipo === 'CPU').length;
     $('rMon').textContent = STATE.items.filter((i) => i.tipo === 'Monitor').length;
     $('rTel').textContent = STATE.items.filter((i) => i.tipo === 'Telefone IP').length;
+    // v1.0.10: novos contadores Notebook e Impressora no resumo executivo
+    if ($('rNote')) $('rNote').textContent = STATE.items.filter((i) => i.tipo === 'Notebook').length;
+    if ($('rImp')) $('rImp').textContent = STATE.items.filter((i) => i.tipo === 'Impressora').length;
     $('rUsr').textContent = new Set(STATE.items.map((i) => i.usuario).filter(Boolean)).size;
+    // v1.0.10: mostra analista se informado
+    if ($('rAnalista') && $('rAnalistaWrap')) {
+      if (STATE.analista) {
+        $('rAnalista').textContent = STATE.analista;
+        $('rAnalistaWrap').style.display = '';
+      } else {
+        $('rAnalistaWrap').style.display = 'none';
+      }
+    }
     if ($('btnShare')) $('btnShare').style.display = 'none';
-    window._lastPlanilhaBlob = null;
     window._lastPlanilhaBlob = null;
     showScreen('screen-finish');
   };
   $('btnBackList').onclick = () => showScreen('screen-list');
+  // v1.0.10: cards do resumo executivo clicáveis (abre modal com itens daquele tipo)
+  document.querySelectorAll('#execGrid .exec-tile').forEach((tile) => {
+    tile.addEventListener('click', () => {
+      const tipo = tile.dataset.tipo;
+      if (tipo === '__users__') return abrirHistoricoModal('usuarios');
+      abrirItensPorTipo(tipo);
+    });
+  });
   if ($('btnShare')) $('btnShare').onclick = () => compartilharPlanilha();
   // v1.0.8: Enviar relatório formatado + planilha pelo WhatsApp
   if ($('btnWhatsRelatorio')) $('btnWhatsRelatorio').onclick = () => enviarRelatorioWhatsApp();

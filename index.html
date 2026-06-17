@@ -104,6 +104,11 @@
         <input type="text" id="setorInv" placeholder="Informe o setor" />
       </div>
       <div class="field">
+        <label for="analistaInv">Analista responsável <span class="opt-label">(opcional)</span></label>
+        <input type="text" id="analistaInv" list="analistasList" placeholder="Quem está conduzindo este inventário" autocomplete="off" />
+        <datalist id="analistasList"></datalist>
+      </div>
+      <div class="field">
         <label for="tituloInv">Título do inventário</label>
         <input type="text" id="tituloInv" value="INVENTARIO DE EQUIPAMENTOS DE TI" />
         <div class="hint">Aparece como título da planilha gerada.</div>
@@ -112,9 +117,12 @@
       <button class="btn btn-secondary" id="btnResume" style="display:none">↻ Retomar inventário em andamento</button>
     </section>
 
-    <!-- TELA 2: Lista de usuários/sessões -->
+    <!-- TELA 2: Lista de usuários/sessões — v1.0.10: header com Voltar + título -->
     <section class="screen" id="screen-list">
-      <div class="section-title">Usuários registrados</div>
+      <div class="screen-header">
+        <button class="btn-back" id="listBack" aria-label="Voltar para o início">← Voltar</button>
+        <h2 class="screen-header-title">Estações registradas</h2>
+      </div>
       <div class="item-list" id="itemList"></div>
       <div class="empty" id="emptyMsg">Nenhuma estação registrada ainda. Toque em <strong>+ Nova captura</strong> para iniciar.</div>
 
@@ -214,14 +222,34 @@
         </div>
       </div>
 
-      <!-- Campo Usuário (passo 6) -->
+      <!-- Campo Usuário (passo 6) — v1.0.10: redesenhado, opcional, com chips rápidos -->
       <div id="wizFieldsUser" style="display:none">
-        <div class="info-banner">
-          👤 Identifique o usuário desta estação. Pode tirar foto da tela com o nome OU digitar manualmente abaixo.
+        <h3 class="step-title-user">Quem usa essa estação?</h3>
+        <p class="step-sub-user">Identifique o responsável OU marque como compartilhada. Este campo é opcional.</p>
+
+        <div class="user-quick-chips">
+          <button type="button" class="user-chip" data-quick="">
+            <span class="chip-icon">👤</span>
+            <span>Pessoa específica</span>
+          </button>
+          <button type="button" class="user-chip" data-quick="Estação compartilhada">
+            <span class="chip-icon">👥</span>
+            <span>Compartilhada</span>
+          </button>
+          <button type="button" class="user-chip" data-quick="Sem usuário fixo">
+            <span class="chip-icon">🧰</span>
+            <span>Sem usuário</span>
+          </button>
+          <button type="button" class="user-chip" data-quick="Multiusuário">
+            <span class="chip-icon">🔄</span>
+            <span>Multiusuário</span>
+          </button>
         </div>
-        <div class="field">
-          <label for="wUsuario">Nome do usuário</label>
-          <input type="text" id="wUsuario" placeholder="Nome completo (capturado da foto ou digitado)" />
+
+        <div class="field user-field-input">
+          <label for="wUsuario">Nome do responsável <span class="opt-label">(opcional)</span></label>
+          <input type="text" id="wUsuario" list="usuariosList" placeholder="Digite o nome completo ou escolha uma opção acima" autocomplete="off" />
+          <datalist id="usuariosList"></datalist>
         </div>
       </div>
 
@@ -312,25 +340,97 @@
       </div>
     </section>
 
-    <!-- TELA 4: Finalizar -->
+    <!-- TELA 4: Finalizar — v1.0.10: resumo executivo moderno + ações reorganizadas -->
     <section class="screen" id="screen-finish">
-      <div class="resumo-box">
-        <h3>Resumo do inventário</h3>
-        <div class="resumo-row"><span>Data</span><span id="rData">-</span></div>
-        <div class="resumo-row"><span>Setor</span><span id="rSetor">-</span></div>
-        <div class="resumo-row"><span>Total de itens</span><span id="rTotal">0</span></div>
-        <div class="resumo-row"><span>CPUs</span><span id="rCpu">0</span></div>
-        <div class="resumo-row"><span>Monitores</span><span id="rMon">0</span></div>
-        <div class="resumo-row"><span>Telefones IP</span><span id="rTel">0</span></div>
-        <div class="resumo-row"><span>Usuários únicos</span><span id="rUsr">0</span></div>
+      <!-- Card principal: cabeçalho do inventário -->
+      <div class="exec-summary-card">
+        <div class="exec-summary-head">
+          <div class="exec-summary-icon">📋</div>
+          <div>
+            <h3 class="exec-summary-title">Resumo do inventário</h3>
+            <div class="exec-summary-meta">
+              <span id="rData">-</span> · <span id="rSetor">-</span>
+            </div>
+            <div class="exec-summary-meta-2" id="rAnalistaWrap" style="display:none">
+              👤 <span id="rAnalista">-</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="exec-summary-total">
+          <span class="big-number" id="rTotal">0</span>
+          <span class="big-label">Itens registrados</span>
+        </div>
+
+        <!-- Grid de cards clicáveis por tipo -->
+        <div class="exec-grid" id="execGrid">
+          <button type="button" class="exec-tile" data-tipo="CPU" aria-label="Ver CPUs">
+            <span class="exec-tile-icon">🖥️</span>
+            <span class="exec-tile-value" id="rCpu">0</span>
+            <span class="exec-tile-label">CPUs</span>
+          </button>
+          <button type="button" class="exec-tile" data-tipo="Monitor" aria-label="Ver monitores">
+            <span class="exec-tile-icon">🖼️</span>
+            <span class="exec-tile-value" id="rMon">0</span>
+            <span class="exec-tile-label">Monitores</span>
+          </button>
+          <button type="button" class="exec-tile" data-tipo="Telefone IP" aria-label="Ver telefones">
+            <span class="exec-tile-icon">📞</span>
+            <span class="exec-tile-value" id="rTel">0</span>
+            <span class="exec-tile-label">Telefones</span>
+          </button>
+          <button type="button" class="exec-tile" data-tipo="Notebook" aria-label="Ver notebooks">
+            <span class="exec-tile-icon">💻</span>
+            <span class="exec-tile-value" id="rNote">0</span>
+            <span class="exec-tile-label">Notebooks</span>
+          </button>
+          <button type="button" class="exec-tile" data-tipo="Impressora" aria-label="Ver impressoras">
+            <span class="exec-tile-icon">🖨️</span>
+            <span class="exec-tile-value" id="rImp">0</span>
+            <span class="exec-tile-label">Impressoras</span>
+          </button>
+          <button type="button" class="exec-tile" data-tipo="__users__" aria-label="Ver usuários">
+            <span class="exec-tile-icon">👥</span>
+            <span class="exec-tile-value" id="rUsr">0</span>
+            <span class="exec-tile-label">Usuários</span>
+          </button>
+        </div>
       </div>
 
-      <button class="btn btn-success" id="btnGen">📊 Gerar planilha .xlsx</button>
-      <button class="btn btn-primary" id="btnShare" style="margin-top:10px; display:none">📤 Compartilhar planilha</button>
-      <button class="btn btn-secondary" id="btnPdf" style="margin-top:10px">📄 Gerar PDF</button>
-      <button class="btn btn-secondary" id="btnWhatsRelatorio" style="margin-top:10px;background:#25D366;color:#fff;border-color:#25D366">💬 Enviar relatório + planilha por WhatsApp</button>
-      <button class="btn btn-secondary" id="btnBackList">← Voltar para a lista</button>
-      <button class="btn btn-danger" id="btnNew" style="margin-top:24px">🗑️ Encerrar e iniciar novo inventário</button>
+      <!-- Ações primárias -->
+      <div class="action-stack">
+        <button class="btn-action btn-action-whatsapp" id="btnWhatsRelatorio">
+          <span class="ba-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.465 3.488"/></svg>
+          </span>
+          <div class="ba-body">
+            <strong>Enviar pelo WhatsApp</strong>
+            <span>Relatório + planilha em anexo</span>
+          </div>
+        </button>
+
+        <div class="action-row">
+          <button class="btn-action btn-action-secondary" id="btnGen">
+            <span class="ba-icon-2">📊</span>
+            <span class="ba-text">Gerar Excel</span>
+          </button>
+          <button class="btn-action btn-action-secondary" id="btnPdf">
+            <span class="ba-icon-2">📄</span>
+            <span class="ba-text">Gerar PDF</span>
+          </button>
+        </div>
+
+        <button class="btn-action btn-action-share" id="btnShare" style="display:none">
+          <span class="ba-icon-2">📤</span>
+          <span class="ba-text">Compartilhar planilha (mais opções)</span>
+        </button>
+      </div>
+
+      <!-- Navegação inferior -->
+      <div class="finish-footer">
+        <button class="btn btn-secondary" id="btnBackList">↻ Retomar inventário</button>
+        <button class="btn btn-danger" id="btnNew">🗑️ Arquivar e iniciar novo</button>
+      </div>
     </section>
 
     <!-- Modal de Câmera Customizada -->
