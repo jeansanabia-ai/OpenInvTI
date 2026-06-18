@@ -37,3 +37,4 @@ npm-debug.log*
 .cache/
 .parcel-cache/
 api/
+*.tmp
