@@ -11,6 +11,10 @@
 // Veja SETUP_CLOUDFLARE.md para o passo a passo do deploy.
 const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // v1.0.12: proxy Cloudflare já fixado
 
+// v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
+const APP_VERSION = '1.0.13';
+const APP_TAGLINE = 'Inventário de TI Inteligente';
+
 // ============================================================
 // PRESETS DE EMPRESA — v1.0.9 — aplicados via ?preset=NOME na URL
 // ============================================================
@@ -299,10 +303,10 @@ function updateTopbar() {
   }
   if (STATE.setor) {
     $('topTitle').textContent = STATE.setor;
-    $('topSub').textContent = fmtDateBR(STATE.data);
+    $('topSub').textContent = fmtDateBR(STATE.data) + ' · v' + APP_VERSION;
   } else {
     $('topTitle').textContent = 'OpenInvTI';
-    $('topSub').textContent = 'Inventário de TI corporativo';
+    $('topSub').textContent = APP_TAGLINE + ' · v' + APP_VERSION;
   }
 }
 

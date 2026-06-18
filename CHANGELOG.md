@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.0.13] - 2026-06-17
+
+### Adicionado
+- **🔢 Versão visível no header**: o subtítulo agora mostra "Inventário de TI Inteligente · v1.0.13". Quando há setor ativo, mostra "DD/MM/AAAA · v1.0.13". Facilita identificar a versão sem abrir configurações.
+- **🧠 Rebranding**: "Inventário de TI corporativo" virou **"Inventário de TI Inteligente"** — reflete o pilar de IA que define o produto. Aplicado no header, hero e descrição.
+- **Constante `APP_VERSION`** centralizada no `app.js` — versão definida em 1 lugar só, propagada pra toda a UI.
+- **Constante `APP_TAGLINE`** — facilita rebranding futuro (basta editar 1 linha).
+
+### Mudado
+- Hero da tela inicial: "Inventário de TI Inteligente · IA · OCR · Open Source" (substituiu "corporativo").
+- Cache do SW: `openinvti-v1.0.13-prod`.
+
+### Boa prática implementada
+Padrão **VersionTag inline** — mesma estratégia usada por Linear, Vercel, Sentry e Stripe. Versão discreta no metadado (subtítulo), não no título principal. Mesma tipografia, mesma cor. Identifica sem poluir.
+
 ## [1.0.12] - 2026-06-17
 
 ### Corrigido
