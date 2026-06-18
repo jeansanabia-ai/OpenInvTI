@@ -9,7 +9,7 @@
 // Cloudflare que adiciona a auth header e encaminha pra api.groq.com.
 // Deixe vazio ('') pra desabilitar o proxy e voltar ao modo "chave manual".
 // Veja SETUP_CLOUDFLARE.md para o passo a passo do deploy.
-const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // TODO: substitua por 'https://openinvti.SEU-USER.workers.dev' após o deploy
+const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // v1.0.12: proxy Cloudflare já fixado
 
 // ============================================================
 // PRESETS DE EMPRESA — v1.0.9 — aplicados via ?preset=NOME na URL
@@ -18,11 +18,35 @@ const EMPRESA_PRESETS = {
   far: {
     empresa: { nome: 'Farmanguinhos', titulo: 'INVENTARIO DE EQUIPAMENTOS DE TI' },
     patrimonio: {
-      regex_padroes: ['^F-FAR-\\d{5}$', '^\\d{6}$'],
+      // v1.0.12: regex MUITO mais tolerante ao OCR — aceita variações de espaço/hífen e captura "FAR" sem "F-"
+      regex_padroes: [
+        'F[-_\\s]?FAR[-_\\s]?\\d{5}',   // F-FAR-12345, F FAR 12345, FFAR-12345, etc.
+        '\\bFAR[-_\\s]?\\d{5}\\b',       // FAR-12345 (OCR perdeu o F-) → será normalizado pra F-FAR-12345
+        '\\b\\d{6}\\b'                   // 6 dígitos puros
+      ],
       exemplo: 'F-FAR-12345 ou 123456',
+      // Normalização: se match começar com "FAR" (sem F-), prefixa "F-"
+      normalizar: 'far',
     },
   },
 };
+
+// v1.0.12: normaliza patrimônio capturado conforme regras da empresa
+function normalizarPatrimonio(match) {
+  if (!match) return '';
+  let v = match.toString().toUpperCase().replace(/[\s_\.]/g, '-').replace(/-+/g, '-');
+  const norm = (APP_CONFIG && APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.normalizar) || '';
+  if (norm === 'far') {
+    // Adiciona "F-" se o match veio sem ele (ex: "FAR-12345" → "F-FAR-12345")
+    if (/^FAR[-]?\d{5}$/.test(v) && !v.startsWith('F-')) {
+      v = 'F-' + v.replace(/^FAR/, 'FAR');
+    }
+    // Garante hífens corretos (FFAR12345 → F-FAR-12345)
+    const mFar = v.match(/^F-?FAR-?(\d{5})$/);
+    if (mFar) v = 'F-FAR-' + mFar[1];
+  }
+  return v;
+}
 
 // ============================================================
 // CONFIGURAÇÃO (carregada de localStorage, fallback config.json)
@@ -678,13 +702,14 @@ function parseLabel(text) {
   // ===== PATRIMÔNIO — múltiplos padrões em ordem de confiança =====
 
   // 1. Padrões configurados pela empresa (APP_CONFIG.patrimonio.regex_padroes)
+  // v1.0.12: usa normalizarPatrimonio() pra corrigir F-FAR perdido pelo OCR e variações
   let m = null;
   const patternsConfig = (APP_CONFIG && APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.regex_padroes) || [];
   for (const padraoStr of patternsConfig) {
     try {
       const re = new RegExp(padraoStr, 'i');
       m = full.match(re);
-      if (m) { out.patrimonio = m[0].toUpperCase().replace(/[\s\.]/g, '-').replace(/-+/g, '-'); break; }
+      if (m) { out.patrimonio = normalizarPatrimonio(m[0]); break; }
     } catch (e) { /* regex inválido, continua */ }
   }
 
@@ -1462,8 +1487,36 @@ async function camDoCapture() {
   }, 'image/jpeg', 0.92);
 }
 
+// v1.0.12: pré-processamento agressivo da imagem pra OCR — binariza + aumenta contraste
+function camPreprocessForOcr(canvas) {
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const ctx = out.getContext('2d');
+  ctx.drawImage(canvas, 0, 0);
+  try {
+    const imgData = ctx.getImageData(0, 0, out.width, out.height);
+    const d = imgData.data;
+    // Calcula brilho médio pra threshold adaptativo
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 16) sum += (d[i] + d[i+1] + d[i+2]) / 3;
+    const avg = sum / (d.length / 16);
+    const th = avg * 0.85; // threshold um pouco abaixo da média = letras escuras viram preto
+    for (let i = 0; i < d.length; i += 4) {
+      const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+      const v = g < th ? 0 : 255;
+      d[i] = d[i+1] = d[i+2] = v;
+    }
+    ctx.putImageData(imgData, 0, 0);
+  } catch (e) { /* fallback: usa canvas original */ }
+  return out;
+}
+
+// v1.0.12: Auto-detect agressivo — frequência maior, pré-processamento, fallback IA Groq
 function camStartAutoDetect(stepKey) {
   if (CAM.detectTimer) clearInterval(CAM.detectTimer);
+  let ultimaConsultaIA = 0;
+  let consultandoIA = false;
   CAM.detectTimer = setInterval(async () => {
     if (!CAM.active || !CAM.autoDetect) return;
     const canvas = camCaptureFrame();
@@ -1471,35 +1524,74 @@ function camStartAutoDetect(stepKey) {
     try {
       // Reduz pra economia de CPU
       const small = document.createElement('canvas');
-      small.width = 800;
-      small.height = Math.round(canvas.height * (800 / canvas.width));
+      small.width = 900;
+      small.height = Math.round(canvas.height * (900 / canvas.width));
       const sctx = small.getContext('2d');
       sctx.drawImage(canvas, 0, 0, small.width, small.height);
-      const dataUrl = small.toDataURL('image/jpeg', 0.7);
+      // v1.0.12: pré-processa pra binarizar (melhora OCR de etiquetas escuras em fundo claro)
+      const processed = camPreprocessForOcr(small);
+      const dataUrl = processed.toDataURL('image/jpeg', 0.78);
       const worker = await getTessWorker();
       const ret = await worker.recognize(dataUrl);
       const text = (ret && ret.data && ret.data.text) || '';
-      // Detecta padrões fortes
-      // Detecta padrões fortes baseados na config + fallback genérico
-      let isStrong = (stepKey !== 'usuario' && /\b\d{8}\b/.test(text));
-      const cfgPats = (APP_CONFIG && APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.regex_padroes) || [];
-      for (const p of cfgPats) {
-        try { if (new RegExp(p, 'i').test(text)) { isStrong = true; break; } } catch {}
+
+      // v1.0.12: detecta padrões fortes — config + fallback genérico
+      let isStrong = false;
+      let patrimonioDetectado = '';
+      if (stepKey !== 'usuario') {
+        const cfgPats = (APP_CONFIG && APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.regex_padroes) || [];
+        for (const p of cfgPats) {
+          try {
+            const re = new RegExp(p, 'i');
+            const mm = text.match(re);
+            if (mm) {
+              patrimonioDetectado = normalizarPatrimonio(mm[0]);
+              isStrong = true;
+              break;
+            }
+          } catch {}
+        }
+        // Fallback genérico: 8 dígitos ou prefixo + 5-6 dígitos
+        if (!isStrong && /\b\d{8}\b/.test(text)) isStrong = true;
       }
+
       const status = $('camDetectStatus');
       if (status) {
         if (isStrong) {
-          status.textContent = '✓ Etiqueta identificada! Capturando...';
+          status.textContent = patrimonioDetectado
+            ? '✓ Patrimônio detectado: ' + patrimonioDetectado + ' — capturando...'
+            : '✓ Etiqueta identificada! Capturando...';
           status.className = 'cam-detect-status show ok';
-          // Auto-captura em 600ms
-          setTimeout(() => { if (CAM.active) camDoCapture(); }, 600);
+          // Auto-captura mais rápida — 400ms
+          setTimeout(() => { if (CAM.active) camDoCapture(); }, 400);
         } else if (text.trim().length > 5) {
           status.textContent = '👁 Procurando padrão...';
+          status.className = 'cam-detect-status show';
+          // v1.0.12: Se há texto mas regex local falhou, tenta IA (não mais que 1x a cada 6s)
+          const agora = Date.now();
+          if (!consultandoIA && iaDisponivel() && stepKey !== 'usuario' && (agora - ultimaConsultaIA) > 6000) {
+            consultandoIA = true;
+            ultimaConsultaIA = agora;
+            try {
+              const iaDados = await extrairCamposComIA(text, null);
+              if (iaDados && iaDados.patrimonio && iaDados.patrimonio.length >= 5) {
+                const patNorm = normalizarPatrimonio(iaDados.patrimonio);
+                if (status) {
+                  status.textContent = '🤖 IA encontrou: ' + patNorm + ' — capturando...';
+                  status.className = 'cam-detect-status show ok';
+                }
+                setTimeout(() => { if (CAM.active) camDoCapture(); }, 500);
+              }
+            } catch (e) { /* silencioso */ }
+            consultandoIA = false;
+          }
+        } else {
+          status.textContent = '📷 Aproxime a etiqueta';
           status.className = 'cam-detect-status show';
         }
       }
     } catch (e) { /* silencioso, segue tentando */ }
-  }, 2200);
+  }, 1200); // v1.0.12: 1.2s (antes era 2.2s) — quase 2x mais rápido
 }
 
 function closeCustomCamera() {

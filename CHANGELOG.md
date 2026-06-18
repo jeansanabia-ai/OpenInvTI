@@ -2,6 +2,35 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.0.12] - 2026-06-17
+
+### Corrigido
+- **🔍 Captura do "F-" no padrão F-FAR**: OCR estava perdendo o prefixo "F-" e capturando só "FAR-12345". Agora o regex aceita variações (`F-FAR`, `FFAR`, `F FAR`, `FAR` sem F-) e a função `normalizarPatrimonio()` reconstrói o formato correto **F-FAR-XXXXX** automaticamente.
+- **⚡ Auto-captura mais ágil**: intervalo do loop de detecção reduzido de **2.2s → 1.2s** (quase 2x mais rápido). Captura efetiva em **400ms** após detectar (antes era 600ms).
+
+### Adicionado
+- **🤖 IA Groq em tempo real durante a câmera**: quando o OCR detecta texto mas o regex local não bate, o app manda pra IA decidir se identificou patrimônio válido. Limitado a 1 chamada a cada 6s pra economizar tokens. Status mostra "🤖 IA encontrou: F-FAR-XXXXX — capturando...".
+- **🎨 Pré-processamento agressivo da imagem**: binarização adaptativa antes do OCR (threshold baseado no brilho médio). Letras escuras viram preto puro, fundo vira branco — OCR melhora drasticamente em etiquetas com pouco contraste ou impressas em fundo metálico.
+- **📷 Feedback visual durante a câmera**: status agora mostra 3 estados:
+  - `📷 Aproxime a etiqueta` (sem texto detectado)
+  - `👁 Procurando padrão...` (texto detectado, ainda não bate)
+  - `✓ Patrimônio detectado: F-FAR-12345 — capturando...` (match!)
+  - `🤖 IA encontrou: F-FAR-12345 — capturando...` (IA bateu)
+
+### Mudado
+- **Preset `?preset=far`** com regex muito mais tolerantes:
+  - `F[-_\s]?FAR[-_\s]?\d{5}` (variações de hífen/espaço)
+  - `\bFAR[-_\s]?\d{5}\b` (OCR perdeu o F-)
+  - `\b\d{6}\b` (só números)
+  - Campo `normalizar: 'far'` ativa a normalização automática.
+- **PROXY_URL hardcoded** no `app.js`: `https://openinvti.jean-sanabia.workers.dev` — não precisa mais editar manualmente após cada update.
+- Cache do SW: `openinvti-v1.0.12-prod`.
+
+### Técnico
+- `normalizarPatrimonio(match)` — função que recebe um match cru do OCR e retorna o formato canônico (F-FAR-XXXXX).
+- `camPreprocessForOcr(canvas)` — binariza canvas com threshold adaptativo antes de mandar pro Tesseract.
+- `camStartAutoDetect` ganhou variáveis `ultimaConsultaIA` e `consultandoIA` pra rate-limit do fallback IA.
+
 ## [1.0.11] - 2026-06-17
 
 ### Adicionado
