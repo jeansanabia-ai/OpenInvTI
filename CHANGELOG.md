@@ -2,6 +2,51 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.1.0] - 2026-06-18 (versão MAJOR — resposta ao bug de perda de inventário)
+
+### 🛡️ PROTEÇÃO ANTI-PERDA DE INVENTÁRIO (resposta DIRETA à perda do setor Validação)
+- **Confirmação reforçada ao arquivar SEM planilha**: alerta detalhado mostrando setor, total de itens e passo a passo correto. Recusa silenciosa não acontece mais.
+- **Histórico SEMPRE com items detalhados** (garantia v1.0.14, reforçado): cópia profunda de todos os dispositivos no arquivamento.
+- **Reset de blobs no arquivamento**: planilha, PDF e buffers são limpos pra evitar confusão entre inventários.
+
+### 💬 WhatsApp Share ROBUSTO (planilha SEMPRE primeiro)
+- ETAPA 1: gera planilha .xlsx **antes de qualquer compartilhamento** — backup automático em Downloads.
+- ETAPA 2: monta texto resumido.
+- ETAPA 3: tenta Web Share API com arquivo + texto.
+- ETAPA 4: fallback inteligente (clipboard + WhatsApp Web).
+- **Mesmo se share for cancelado, planilha já está salva.** Não tem como perder dados.
+
+### 🗂️ Inventários arquivados NAVEGÁVEIS
+- Toque em qualquer arquivado no card "📦 Sessões" → modal com TODOS os dispositivos.
+- 4 botões de ação dentro do arquivado:
+  - 💬 Enviar pelo WhatsApp
+  - 📊 Regerar planilha .xlsx
+  - 📄 Regerar PDF
+  - ✏️ Editar este inventário (restaura pro modo edição)
+
+### 🔍 OCR sem stale + Auto-detect corrigido
+- RESET completo do estado de captura ANTES de cada nova foto: limpa imagem, status e progresso.
+- **BUGFIX CRÍTICO no auto-detect**: removido fallback genérico `\d{8}` que capturava tomadas com "127V" + códigos de barras como etiqueta.
+- Auto-captura agora SÓ dispara se um regex configurado da empresa bater.
+
+### 🏷️ Padrão Farmanguinhos REAL corrigido
+- Etiqueta real é `41810330` (8 dígitos começando com `41`), NÃO `F-FAR-12345` como estava configurado.
+- Preset Far atualizado com `\b41\d{6}\b` como PRIMEIRO regex (prioritário).
+- Mantém suporte ao formato antigo `F-FAR-XXXXX` como fallback.
+- Auto-detecção de "Farmanguinhos"/"Fiocruz" no setup manual ativa regex Far + normalização.
+
+### 🧭 UX do wizard
+- **"+ outro" renomeado para "+ Adicionar outro"** — texto mais claro.
+- **Novo botão "✓ Finalizar inventário"** no passo de usuário — salva sessão atual e vai direto pra tela final.
+
+### Mudado
+- Cache do SW: `openinvti-v1.1.0-prod`.
+- Subtítulo header: `Inventário de TI Inteligente · v1.1.0`.
+
+### Por que v1.1.0 (e não v1.0.15)?
+Marca o salto de "MVP em iteração rápida" para "produto resiliente com proteção real contra perda de dados". 7 problemas críticos reportados pelo usuário foram atacados em sequência. **Compromisso: nunca mais perder inventário por bug do app.**
+
+
 ## [1.0.13] - 2026-06-17
 
 ### Adicionado

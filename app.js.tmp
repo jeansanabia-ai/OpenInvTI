@@ -22,15 +22,14 @@ const EMPRESA_PRESETS = {
   far: {
     empresa: { nome: 'Farmanguinhos', titulo: 'INVENTARIO DE EQUIPAMENTOS DE TI' },
     patrimonio: {
-      // v1.0.12: regex MUITO mais tolerante ao OCR — aceita variações de espaço/hífen e captura "FAR" sem "F-"
+      // v1.1.0: REGEX REAIS baseados em etiqueta real ("FIOCRUZ-FARMANGUINHOS / 41810330")
       regex_padroes: [
-        '\\b41\\d{6}\\b',                // v1.1.0: NOVO padrão Fiocruz 41810330
-        'F[-_\\s]?FAR[-_\\s]?\\d{5}',
-        '\\bFAR[-_\\s]?\\d{5}\\b',
-        '\\b\\d{6}\\b'
+        '\\b41\\d{6}\\b',                // ✅ NOVO padrão Fiocruz: 8 dígitos começando com 41
+        'F[-_\\s]?FAR[-_\\s]?\\d{5}',    // padrão ANTIGO
+        '\\bFAR[-_\\s]?\\d{5}\\b',       // OCR perdeu o F-
+        '\\b\\d{6}\\b'                   // 6 dígitos fallback
       ],
       exemplo: '41810330 ou F-FAR-12345',
-      // Normalização: se match começar com "FAR" (sem F-), prefixa "F-"
       normalizar: 'far',
     },
   },
@@ -267,92 +266,14 @@ function arquivarInventarioAtual() {
     data: STATE.data || todayIso(),
     setor: STATE.setor || '(sem setor)',
     titulo: STATE.titulo || '',
-    analista: STATE.analista || '',
     totalSessoes: sessoesSet.size,
     totalItens: STATE.items.length,
     totalUsuarios: usuariosSet.size,
     usuarios: Array.from(usuariosSet),
-    items: JSON.parse(JSON.stringify(STATE.items || [])), // v1.1.0: cópia profunda
     dataArquivamento: new Date().toISOString(),
   };
   if (!Array.isArray(STATE.historicoSessoes)) STATE.historicoSessoes = [];
   STATE.historicoSessoes.push(resumo);
-}
-
-// v1.1.0: Modal de detalhes do inventário ARQUIVADO — lista items + ações
-function abrirInventarioArquivado(id) {
-  const historico = STATE.historicoSessoes || [];
-  const inv = historico.find(h => h.id === id);
-  if (!inv) { toast('Inventário não encontrado.'); return; }
-  const items = Array.isArray(inv.items) ? inv.items : [];
-  const old = document.getElementById('historyModal');
-  if (old) old.remove();
-  const overlay = document.createElement('div');
-  overlay.id = 'historyModal';
-  overlay.className = 'history-modal-bg';
-  const dataBR = fmtDateBR(inv.data || '');
-  const nomeArq = (inv.data || '') + '_' + (inv.setor || '').replace(/[^a-zA-Z0-9_-]/g, '_') + '.xlsx';
-  let conteudo = '';
-  if (items.length === 0) {
-    conteudo = '<div class="hm-empty">⚠️ Este inventário foi arquivado em uma versão anterior (antes da v1.1.0) e não tem os itens detalhados salvos.<br><br>' +
-      'A planilha .xlsx que você gerou está em <strong>Downloads</strong>:<br><br>' +
-      '<code style="font-size:11px;color:#67E8F9;word-break:break-all">' + nomeArq + '</code></div>';
-  } else {
-    conteudo = items.map((it, i) => (
-      '<div class="hm-item"><strong>' + (i+1) + '. ' + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
-      '<div class="hm-sub">' + (it.patrimonio ? 'Patr: ' + it.patrimonio + ' · ' : '') +
-      (it.serie ? 'SN: ' + it.serie + ' · ' : '') +
-      (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') + '</div></div>'
-    )).join('');
-  }
-  const acoes = items.length > 0 ?
-    '<div class="hm-actions">' +
-      '<button class="hm-action-btn hm-act-whats" data-act="whats">💬 Enviar pelo WhatsApp</button>' +
-      '<button class="hm-action-btn" data-act="xlsx">📊 Regerar planilha .xlsx</button>' +
-      '<button class="hm-action-btn" data-act="pdf">📄 Regerar PDF</button>' +
-      '<button class="hm-action-btn" data-act="edit">✏️ Editar este inventário</button>' +
-    '</div>' : '';
-  overlay.innerHTML = '<div class="history-modal">' +
-    '<button class="hm-close" id="hmCloseBtn">Fechar ×</button>' +
-    '<h3>📋 ' + (inv.setor || '(sem setor)') + '</h3>' +
-    '<div class="hm-arch-meta">📅 ' + dataBR + ' · ' + (inv.totalSessoes || 0) + ' sessão(ões) · ' +
-    (inv.totalItens || 0) + ' item(ns) · ' + (inv.totalUsuarios || 0) + ' usuário(s)' +
-    (inv.analista ? '<br>👤 Analista: ' + inv.analista : '') + '</div>' +
-    acoes + conteudo + '</div>';
-  document.body.appendChild(overlay);
-  document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  overlay.querySelectorAll('.hm-action-btn').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const act = btn.dataset.act;
-      if (act === 'edit') {
-        if (!confirm('Editar este inventário arquivado?\n\nEle volta pro modo edição. O histórico será recriado quando você arquivar de novo.')) return;
-        STATE.historicoSessoes = (STATE.historicoSessoes || []).filter(h => h.id !== inv.id);
-        STATE.data = inv.data; STATE.setor = inv.setor; STATE.titulo = inv.titulo;
-        STATE.analista = inv.analista || ''; STATE.items = inv.items.slice(); STATE.editingId = null;
-        await saveState();
-        if ($('setorInv')) $('setorInv').value = inv.setor || '';
-        if ($('analistaInv')) $('analistaInv').value = inv.analista || '';
-        if ($('dataInv')) $('dataInv').value = inv.data || todayIso();
-        if ($('tituloInv')) $('tituloInv').value = inv.titulo || '';
-        window._lastPlanilhaBlob = null; window._lastPlanilhaBuf = null; window._lastPdfBlob = null;
-        updateTopbar(); updateDashboard(); refreshList();
-        overlay.remove();
-        toast('✏️ Inventário restaurado. Edite e finalize quando terminar.', 4500);
-        showScreen('screen-list');
-        return;
-      }
-      const BAK = { data: STATE.data, setor: STATE.setor, titulo: STATE.titulo, analista: STATE.analista, items: STATE.items };
-      try {
-        STATE.data = inv.data; STATE.setor = inv.setor; STATE.titulo = inv.titulo;
-        STATE.analista = inv.analista || ''; STATE.items = inv.items.slice();
-        if (act === 'xlsx') { await gerarPlanilha(); toast('✓ Planilha regerada em Downloads', 3500); }
-        else if (act === 'pdf') { if ($('btnPdf')) $('btnPdf').click(); }
-        else if (act === 'whats') { await enviarRelatorioWhatsApp(); }
-      } catch (e) { console.error(e); toast('Erro: ' + (e.message || e)); }
-      finally { Object.assign(STATE, BAK); }
-    });
-  });
 }
 
 function updateTopbar() {
@@ -456,18 +377,16 @@ function abrirHistoricoModal(tipo) {
       )).join(''));
     }
     if (historico.length > 0) {
-      partes.push('<div style="font-size:12px;color:#34D399;font-weight:700;margin:14px 0 6px">▸ Inventários arquivados (toque pra ver dispositivos)</div>');
+      partes.push('<div style="font-size:12px;color:#34D399;font-weight:700;margin:14px 0 6px">▸ Inventários arquivados</div>');
       partes.push(historico.map((h) => (
-        '<div class="hm-item hm-item-archived" data-arch-id="' + (h.id || '') + '" style="cursor:pointer">' +
-        '<div class="hm-item-body"><strong>' + (h.setor || '(sem setor)') + '</strong>' +
+        '<div class="hm-item">' +
+        '<strong>' + (h.setor || '(sem setor)') + '</strong>' +
         '<div class="hm-sub">' +
           (h.data ? fmtDateBR(h.data) + ' · ' : '') +
           (h.totalSessoes || 0) + ' sessão(ões) · ' +
           (h.totalItens || 0) + ' item(ns) · ' +
           (h.totalUsuarios || 0) + ' usuário(s)' +
-        '</div></div>' +
-        '<button type="button" class="hm-item-edit" style="background:rgba(52,211,153,0.14);color:#34D399;border-color:rgba(52,211,153,0.32);" title="Ver dispositivos">👁</button>' +
-        '</div>'
+        '</div></div>'
       )).join(''));
     }
     if (partes.length === 0) partes.push('<div class="hm-empty">Nenhuma sessão registrada ainda.</div>');
@@ -522,19 +441,9 @@ function abrirHistoricoModal(tipo) {
   overlay.querySelectorAll('.hm-item-edit, .hm-item-editable').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      const archEl = e.target.closest('[data-arch-id]');
-      if (archEl) { abrirInventarioArquivado(archEl.dataset.archId); return; }
       const sid = (e.currentTarget.dataset && e.currentTarget.dataset.sid)
                  || (e.target.closest('[data-sid]') && e.target.closest('[data-sid]').dataset.sid);
       if (sid) editarSessaoDoModal(sid);
-    });
-  });
-  // v1.1.0: clicar no item arquivado inteiro
-  overlay.querySelectorAll('.hm-item-archived').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = el.dataset.archId;
-      if (id) abrirInventarioArquivado(id);
     });
   });
 }
@@ -1146,8 +1055,6 @@ function wizardRender() {
   if (step.skippable) $('wizSkip').textContent = step.skipLabel || 'Pular';
   $('wizNext').textContent = stepNum === total ? '✓ Finalizar captura' : 'Próximo →';
   if ($('wizSaveNext')) $('wizSaveNext').style.display = (step.key === 'usuario') ? 'flex' : 'none';
-  // v1.1.0: botão "Finalizar inventário" aparece no passo de usuário
-  if ($('wizFinishInv')) $('wizFinishInv').style.display = (step.key === 'usuario') ? 'flex' : 'none';
 
   // Mostrar campos certos
   const isEquip = ['cpu', 'monitor1', 'monitor2', 'telefone'].includes(step.key);
@@ -1649,7 +1556,7 @@ function camStartAutoDetect(stepKey) {
           } catch {}
         }
         // Fallback genérico: 8 dígitos ou prefixo + 5-6 dígitos
-        // v1.1.0: REMOVIDO fallback \d{8} (capturava tomadas "127V" como etiqueta)
+        if (!isStrong && /\b\d{8}\b/.test(text)) isStrong = true;
       }
 
       const status = $('camDetectStatus');
@@ -2379,19 +2286,9 @@ function abrirItensPorTipo(tipo) {
   overlay.querySelectorAll('.hm-item-edit, .hm-item-editable').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
-      const archEl = e.target.closest('[data-arch-id]');
-      if (archEl) { abrirInventarioArquivado(archEl.dataset.archId); return; }
       const sid = (e.currentTarget.dataset && e.currentTarget.dataset.sid)
                  || (e.target.closest('[data-sid]') && e.target.closest('[data-sid]').dataset.sid);
       if (sid) editarSessaoDoModal(sid);
-    });
-  });
-  // v1.1.0: clicar no item arquivado inteiro
-  overlay.querySelectorAll('.hm-item-archived').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = el.dataset.archId;
-      if (id) abrirInventarioArquivado(id);
     });
   });
 }
@@ -2443,15 +2340,12 @@ async function enviarRelatorioWhatsApp() {
     toast('Nenhum item para reportar. Adicione equipamentos primeiro.');
     return;
   }
-  // v1.1.0: PLANILHA SEMPRE PRIMEIRO — backup automático em Downloads
-  toast('Gerando planilha .xlsx (backup em Downloads)…', 2500);
-  try {
-    await gerarPlanilha();
-  } catch (e) {
-    toast('❌ ERRO ao gerar planilha: ' + (e.message || e) + '. Tente de novo.', 6000);
-    return;
-  }
   const textoRelatorio = montarRelatorioTexto();
+  // Garante que a planilha foi gerada (gera no ato se ainda não foi)
+  if (!window._lastPlanilhaBuf && !window._lastPlanilhaBlob) {
+    toast('Gerando planilha primeiro…', 2000);
+    try { await gerarPlanilha(); } catch (e) { toast('Erro ao gerar planilha: ' + (e.message || e)); return; }
+  }
   const nome = window._lastPlanilhaNome || 'Inventario.xlsx';
   const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
   let file = null;
@@ -2598,20 +2492,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (marcasStr) APP_CONFIG.marcas = marcasStr.split(',').map(s => s.trim()).filter(Boolean);
     const patRegex = ($('cfgPatRegex').value || '').trim();
     if (patRegex) {
+      // v1.0.8: suporta múltiplos regex separados por | (pipe) ou nova linha
       APP_CONFIG.patrimonio.regex_padroes = patRegex.split(/\n|\s*\|\s*/).map(r => r.trim()).filter(Boolean);
-    }
-    // v1.1.0: auto-detect Farmanguinhos/Fiocruz no nome da empresa
-    if (/farmanguinhos|fiocruz|f[-_\s]?far/i.test(emp)) {
-      APP_CONFIG.patrimonio.normalizar = 'far';
-      const regexAtuais = (APP_CONFIG.patrimonio.regex_padroes || []).join(' ');
-      if (!/41|F.{0,3}FAR/i.test(regexAtuais)) {
-        APP_CONFIG.patrimonio.regex_padroes = [
-          '\\b41\\d{6}\\b',
-          'F[-_\\s]?FAR[-_\\s]?\\d{5}',
-          '\\bFAR[-_\\s]?\\d{5}\\b',
-          '\\b\\d{6}\\b'
-        ];
-      }
     }
     // v1.0.8: salva chave Groq se informada
     if ($('cfgGroqKey')) {
@@ -2755,11 +2637,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('wizBack').onclick = () => wizardBack();
   $('wizSkip').onclick = () => { if (!confirm('Pular essa etapa?')) return; wizardSkip(); };
   if ($('wizSaveNext')) $('wizSaveNext').onclick = () => wizardSaveAndContinue();
-  // v1.1.0: Finalizar inventário do wizard
-  if ($('wizFinishInv')) $('wizFinishInv').onclick = async () => {
-    try { if (typeof wizardSaveAndContinue === 'function') await wizardSaveAndContinue(); } catch (e) {}
-    if ($('btnFinish')) $('btnFinish').click();
-  };
   // Theme toggle
   if ($('themeToggle')) $('themeToggle').onclick = () => toggleTheme();
   // Aplica tema salvo
@@ -2937,21 +2814,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // Handler legacy do input file (fallback)
   $('wizInput').addEventListener('change', async (e) => {
     const file = e.target.files && e.target.files[0];
-    e.target.value = ''; // limpa logo
-    if (file) {
-      // v1.1.0: reset estado anti-stale
-      try {
-        const img = document.getElementById('wizPhoto');
-        if (img) { img.src = ''; img.classList.remove('show'); }
-        const box = document.getElementById('wizPhotoBox');
-        if (box) box.classList.remove('has-photo');
-        const st = document.getElementById('wizStatus');
-        if (st) { st.textContent = ''; st.classList.remove('error', 'ok'); }
-        const pg = document.getElementById('wizProg');
-        if (pg) pg.classList.remove('active');
-      } catch (e) {}
-      await processCapturedFile(file);
-    }
+    if (file) await processCapturedFile(file);
+    e.target.value = '';
   });
 
   $('itemList').addEventListener('click', (e) => {
@@ -3015,14 +2879,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   };
 
   $('btnNew').onclick = async () => {
-    const planilhaGerada = !!(window._lastPlanilhaBuf || window._lastPlanilhaBlob);
-    const totalItens = STATE.items ? STATE.items.length : 0;
-    if (!planilhaGerada && totalItens > 0) {
-      const msg = '⚠️ ATENÇÃO!\n\nVocê NÃO gerou a planilha .xlsx ainda.\n\nItens: ' + totalItens + '\nSetor: ' + (STATE.setor || '-') + '\n\nSe arquivar agora SEM planilha, você corre risco de perder dados.\n\nRecomendado:\n1) CANCELAR\n2) Tocar em "📊 Gerar planilha"\n3) Aí sim arquivar\n\nArquivar mesmo assim? (não recomendado)';
-      if (!confirm(msg)) return;
-    } else {
-      if (!confirm('Arquivar este inventário?\n\nFica salvo no card "📦 Sessões" com TODOS os dispositivos. Você pode regerar planilha/PDF ou editar depois.')) return;
-    }
+    if (!confirm('Arquivar este inventario e comecar um novo? A planilha ja baixada nao sera afetada. O resumo deste inventario fica no dashboard.')) return;
     // BUG #1 FIX: Arquiva o inventario atual no historico antes de limpar
     arquivarInventarioAtual();
     STATE.data = ''; STATE.setor = ''; STATE.titulo = ''; STATE.items = []; STATE.editingId = null;
@@ -3395,4 +3252,4 @@ window.addEventListener('beforeunload', (e) => {
     e.preventDefault();
     e.returnValue = '';
   }
-})
+});
