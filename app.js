@@ -12,7 +12,7 @@
 const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // v1.0.12: proxy Cloudflare já fixado
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -1584,7 +1584,8 @@ async function camDoCapture() {
   }, 'image/jpeg', 0.92);
 }
 
-// v1.0.12: pré-processamento agressivo da imagem pra OCR — binariza + aumenta contraste
+// v1.1.1: pré-processamento SUAVE — só converte pra grayscale + aumenta contraste sutilmente
+// (binarização agressiva da v1.0.12 estava destruindo etiquetas claras tipo "F-FAR-XXXXX")
 function camPreprocessForOcr(canvas) {
   const out = document.createElement('canvas');
   out.width = canvas.width;
@@ -1594,18 +1595,16 @@ function camPreprocessForOcr(canvas) {
   try {
     const imgData = ctx.getImageData(0, 0, out.width, out.height);
     const d = imgData.data;
-    // Calcula brilho médio pra threshold adaptativo
-    let sum = 0;
-    for (let i = 0; i < d.length; i += 16) sum += (d[i] + d[i+1] + d[i+2]) / 3;
-    const avg = sum / (d.length / 16);
-    const th = avg * 0.85; // threshold um pouco abaixo da média = letras escuras viram preto
+    // Grayscale com curva de contraste suave (multiplicador 1.2 + offset)
     for (let i = 0; i < d.length; i += 4) {
       const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
-      const v = g < th ? 0 : 255;
-      d[i] = d[i+1] = d[i+2] = v;
+      // Curva suave: amplifica contraste sem clipping agressivo
+      let adj = (g - 128) * 1.25 + 128;
+      adj = Math.max(0, Math.min(255, adj));
+      d[i] = d[i+1] = d[i+2] = adj;
     }
     ctx.putImageData(imgData, 0, 0);
-  } catch (e) { /* fallback: usa canvas original */ }
+  } catch (e) { /* fallback */ }
   return out;
 }
 
@@ -1620,17 +1619,25 @@ function camStartAutoDetect(stepKey) {
     if (!canvas) return;
     try {
       // Reduz pra economia de CPU
+      // v1.1.1: resolução aumentada 900→1100 (melhor precisão sem prejuízo de velocidade)
       const small = document.createElement('canvas');
-      small.width = 900;
-      small.height = Math.round(canvas.height * (900 / canvas.width));
+      small.width = 1100;
+      small.height = Math.round(canvas.height * (1100 / canvas.width));
       const sctx = small.getContext('2d');
       sctx.drawImage(canvas, 0, 0, small.width, small.height);
-      // v1.0.12: pré-processa pra binarizar (melhora OCR de etiquetas escuras em fundo claro)
-      const processed = camPreprocessForOcr(small);
-      const dataUrl = processed.toDataURL('image/jpeg', 0.78);
+      // v1.1.1: OCR de 2 passos — primeiro IMAGEM LIMPA (Tesseract já pré-processa internamente)
+      // Se não detectar, tenta com nosso pré-processamento como reforço
       const worker = await getTessWorker();
-      const ret = await worker.recognize(dataUrl);
-      const text = (ret && ret.data && ret.data.text) || '';
+      const dataUrlOrig = small.toDataURL('image/jpeg', 0.85);
+      let ret = await worker.recognize(dataUrlOrig);
+      let text = (ret && ret.data && ret.data.text) || '';
+      // Se texto curto/vazio, tenta com pré-processamento
+      if (text.trim().length < 5) {
+        const processed = camPreprocessForOcr(small);
+        const dataUrl2 = processed.toDataURL('image/jpeg', 0.85);
+        ret = await worker.recognize(dataUrl2);
+        text = (ret && ret.data && ret.data.text) || '';
+      }
 
       // v1.0.12: detecta padrões fortes — config + fallback genérico
       let isStrong = false;
@@ -1662,7 +1669,9 @@ function camStartAutoDetect(stepKey) {
           // Auto-captura mais rápida — 400ms
           setTimeout(() => { if (CAM.active) camDoCapture(); }, 400);
         } else if (text.trim().length > 5) {
-          status.textContent = '👁 Procurando padrão...';
+          // v1.1.1: mostra preview do texto detectado pra ajudar debug
+          const preview = text.replace(/\s+/g, ' ').trim().substring(0, 30);
+          status.textContent = '👁 Lendo: "' + preview + '"...';
           status.className = 'cam-detect-status show';
           // v1.0.12: Se há texto mas regex local falhou, tenta IA (não mais que 1x a cada 6s)
           const agora = Date.now();
@@ -2917,9 +2926,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (achados.length) {
           status.textContent = prefixo + achados.join(', ') + '. Confira/edite abaixo.' + blurWarn;
         } else if (text.trim()) {
-          status.textContent = 'OCR leu texto mas nao achou padroes. Preencha manualmente.';
+          // v1.1.1: status mais informativo com prévia do texto
+      const previewT = (text || '').replace(/\s+/g, ' ').trim().substring(0, 60);
+      status.textContent = 'OCR leu: "' + previewT + '..." mas não bateu nenhum padrão. Preencha abaixo.';
         } else {
-          status.textContent = 'Foto sem texto reconhecivel. Aproxime e tire de novo.';
+          status.textContent = '⚠️ Foto sem texto legível. Aproxime mais, melhore iluminação ou preencha manualmente.';
         }
       }
     } catch (err) {

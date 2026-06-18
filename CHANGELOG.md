@@ -2,6 +2,30 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.1.1] - 2026-06-18 (hotfix OCR — pós teste real)
+
+### 🔴 BUGFIX CRÍTICO — OCR não capturava etiquetas claras
+- **Etiqueta `F-FAR-26856` perfeitamente legível NÃO era detectada**. Causa: o pré-processamento agressivo da v1.0.12 (binarização com threshold 0.85x do brilho médio) destruía etiquetas claras com fundo branco — caracteres finos como "F-" desapareciam.
+
+### ✅ Correções aplicadas
+- **Pré-processamento SUAVIZADO**: substituída binarização agressiva por curva de contraste suave (multiplicador 1.25, sem clipping extremo). Mantém detalhes finos.
+- **OCR de 2 passos**: primeiro tenta IMAGEM LIMPA (Tesseract já tem pré-processamento interno excelente). Se texto vazio/curto, aplica nosso pré-processamento como reforço.
+- **Resolução aumentada 900→1100 px**: melhor precisão sem prejuízo notável de velocidade.
+- **Status visível em tempo real**: agora mostra `👁 Lendo: "TEXTO DETECTADO..."` em vez do genérico "Procurando padrão". Você vê EXATAMENTE o que o OCR está lendo.
+- **Mensagens de erro úteis**: quando OCR lê mas regex não bate, mostra prévia do texto e instrui "preencha abaixo".
+
+### Técnico
+- `camPreprocessForOcr` reescrito: grayscale com curva de contraste linear (1.25x amplificação) em vez de binarização threshold.
+- `camStartAutoDetect` agora tenta `worker.recognize(small)` ANTES de `worker.recognize(processed)`.
+- Cache do SW: `openinvti-v1.1.1-prod`.
+
+### Como confirmar o fix
+1. Limpa dados do app no Android
+2. Abre câmera apontando pra etiqueta `F-FAR-XXXXX` ou `41XXXXXX`
+3. ✅ Status agora mostra `👁 Lendo: "MONITOR HP ELITEDISPLAY..."` (texto real)
+4. ✅ Quando detectar padrão: `✓ Patrimônio detectado: F-FAR-26856 — capturando...`
+
+
 ## [1.1.0] - 2026-06-18 (versão MAJOR — resposta ao bug de perda de inventário)
 
 ### 🛡️ PROTEÇÃO ANTI-PERDA DE INVENTÁRIO (resposta DIRETA à perda do setor Validação)
