@@ -12,7 +12,7 @@
 const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // v1.0.12: proxy Cloudflare já fixado
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.1.1';
+const APP_VERSION = '1.2.0';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -152,6 +152,8 @@ function openDB() {
   });
 }
 async function saveState() {
+  // v1.2.0: indicador visual de auto-save (não-bloqueante)
+  try { setTimeout(() => { if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('💾 Salvo', 'ok'); }, 100); } catch (e) {}
   try {
     const db = await openDB();
     const tx = db.transaction(DB_STORE, 'readwrite');
@@ -1146,6 +1148,8 @@ function wizardRender() {
   if (step.skippable) $('wizSkip').textContent = step.skipLabel || 'Pular';
   $('wizNext').textContent = stepNum === total ? '✓ Finalizar captura' : 'Próximo →';
   if ($('wizSaveNext')) $('wizSaveNext').style.display = (step.key === 'usuario') ? 'flex' : 'none';
+  // v1.1.2: botão "Sem etiqueta" só em passos de equipamento
+  if ($('wizSemEtiqueta')) $('wizSemEtiqueta').style.display = isEquip ? 'flex' : 'none';
   // v1.1.0: botão "Finalizar inventário" aparece no passo de usuário
   if ($('wizFinishInv')) $('wizFinishInv').style.display = (step.key === 'usuario') ? 'flex' : 'none';
 
@@ -1163,6 +1167,10 @@ function wizardRender() {
   // v1.0.10: popular datalist e chips na entrada do step de usuário
   if (isUser) {
     try { popularUsuariosDatalist(); inicializarChipsUsuario(); } catch (e) {}
+  }
+  // v1.1.2: ativa autocomplete inteligente de modelos
+  if (isEquip) {
+    try { ativarAutocompleteWizard(); popularModelosDatalist(($('wMarca') && $('wMarca').value) || ''); } catch (e) {}
   }
 
   // Limpar foto e status
@@ -1519,10 +1527,9 @@ async function openCustomCamera(stepKey) {
     $('camTorch').style.display = CAM.torchSupported ? 'flex' : 'none';
 
     // Auto-detect via OCR
-    CAM.autoDetect = $('camAuto') ? $('camAuto').checked : true;
-    if (CAM.autoDetect && stepKey !== 'usuario') {
-      camStartAutoDetect(stepKey);
-    }
+    // v1.1.2: REMOVIDO auto-detect contínuo. Câmera agora SÓ tira foto manual.
+    // Usuário aponta, posiciona, aperta o botão central pra capturar.
+    CAM.autoDetect = false;
 
     // Retorna uma Promise que resolve quando o usuário captura
     return new Promise((resolve, reject) => {
@@ -2324,6 +2331,342 @@ function popularAnalistasDatalist() {
     dl.innerHTML = lista.map(n => '<option value="' + n.replace(/"/g, '&quot;') + '"></option>').join('');
   } catch (e) {}
 }
+// v1.1.2: Aprende com o uso — registra marca/modelo digitado manualmente
+function registrarMarcaModelo(marca, modelo) {
+  if (!marca && !modelo) return;
+  try {
+    const key = 'openinvti-base-equipamentos';
+    const base = JSON.parse(localStorage.getItem(key) || '{}');
+    if (marca) {
+      base.marcas = base.marcas || {};
+      base.marcas[marca] = (base.marcas[marca] || 0) + 1;
+    }
+    if (modelo && marca) {
+      base.modelosPorMarca = base.modelosPorMarca || {};
+      if (!base.modelosPorMarca[marca]) base.modelosPorMarca[marca] = {};
+      base.modelosPorMarca[marca][modelo] = (base.modelosPorMarca[marca][modelo] || 0) + 1;
+    }
+    localStorage.setItem(key, JSON.stringify(base));
+  } catch (e) {}
+}
+
+function popularModelosDatalist(marca) {
+  const dl = document.getElementById('modelosList');
+  if (!dl) return;
+  try {
+    const key = 'openinvti-base-equipamentos';
+    const base = JSON.parse(localStorage.getItem(key) || '{}');
+    let modelos = [];
+    // Modelos da marca atual
+    if (marca && base.modelosPorMarca && base.modelosPorMarca[marca]) {
+      modelos = Object.entries(base.modelosPorMarca[marca])
+        .sort((a, b) => b[1] - a[1])
+        .map(e => e[0]);
+    }
+    // Adiciona também os usados em inventário atual
+    for (const it of (STATE.items || [])) {
+      if (it.modelo && !modelos.includes(it.modelo)) modelos.push(it.modelo);
+    }
+    dl.innerHTML = modelos.slice(0, 30).map(m => '<option value="' + m.replace(/"/g, '&quot;') + '"></option>').join('');
+  } catch (e) {}
+}
+
+// Hook quando marca muda, atualiza modelos sugeridos
+function ativarAutocompleteWizard() {
+  const wMarca = document.getElementById('wMarca');
+  if (wMarca && !wMarca.dataset.autoBound) {
+    wMarca.dataset.autoBound = '1';
+    wMarca.addEventListener('input', () => popularModelosDatalist(wMarca.value));
+    wMarca.addEventListener('change', () => popularModelosDatalist(wMarca.value));
+  }
+}
+
+// v1.1.2: Marca item como "sem etiqueta" pra etiquetar depois
+function marcarSemEtiqueta() {
+  if ($('wPatrimonio')) $('wPatrimonio').value = 'SEM ETIQUETA';
+  if ($('wObs')) {
+    const cur = ($('wObs').value || '').trim();
+    const obs = 'SEM ETIQUETA - PENDENTE ETIQUETAR';
+    $('wObs').value = cur ? (cur + ' · ' + obs) : obs;
+  }
+  toast('✓ Marcado como SEM ETIQUETA. Etiquetar depois.', 3500);
+}
+
+// ==================================================
+// v1.2.0: Indicador de Auto-save visual
+// ==================================================
+let _autoSaveTimer = null;
+function mostrarIndicadorSave(texto, classe) {
+  let el = document.getElementById('saveIndicator');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'saveIndicator';
+    el.className = 'save-indicator';
+    document.body.appendChild(el);
+  }
+  el.textContent = texto || '✓ Salvo';
+  el.className = 'save-indicator show ' + (classe || 'ok');
+  if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => { el.className = 'save-indicator'; }, 2200);
+}
+// Hook no saveState para mostrar indicador
+const _originalSaveState = (typeof saveState === 'function') ? saveState : null;
+window._mostrarSaveAfter = function() { mostrarIndicadorSave('💾 Salvo', 'ok'); };
+
+// ==================================================
+// v1.2.0: BarcodeDetector API (Chrome nativo)
+// ==================================================
+async function lerCodigoBarras() {
+  if (!('BarcodeDetector' in window)) {
+    toast('⚠️ Seu navegador não suporta leitura nativa de código de barras. Use OCR.', 4500);
+    return null;
+  }
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.capture = 'environment';
+  const file = await new Promise((resolve) => {
+    fileInput.onchange = (e) => resolve(e.target.files && e.target.files[0]);
+    fileInput.click();
+  });
+  if (!file) return null;
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = URL.createObjectURL(file);
+    });
+    const detector = new BarcodeDetector({
+      formats: ['code_128', 'ean_13', 'ean_8', 'code_39', 'qr_code', 'codabar']
+    });
+    const codes = await detector.detect(img);
+    URL.revokeObjectURL(img.src);
+    if (codes && codes.length > 0) {
+      const raw = codes[0].rawValue || '';
+      const normalizado = normalizarPatrimonio(raw);
+      toast('✓ Código de barras lido: ' + (normalizado || raw), 4000);
+      return normalizado || raw;
+    }
+    toast('⚠️ Nenhum código de barras detectado. Tente OCR.', 3500);
+    return null;
+  } catch (e) {
+    toast('Erro ao ler código: ' + (e.message || e), 4000);
+    return null;
+  }
+}
+
+// ==================================================
+// v1.2.0: IA Vision — identifica equipamento pela foto
+// ==================================================
+async function identificarEquipamentoComIA() {
+  if (!iaDisponivel()) { toast('IA não disponível agora.', 3000); return null; }
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.capture = 'environment';
+  const file = await new Promise((resolve) => {
+    fileInput.onchange = (e) => resolve(e.target.files && e.target.files[0]);
+    fileInput.click();
+  });
+  if (!file) return null;
+  toast('🤖 IA analisando a foto…', 2500);
+  try {
+    // Converte pra base64 reduzido
+    const dataUrl = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+    // Tenta usar modelo vision via proxy
+    const messages = [{
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Você é especialista em equipamentos de TI. Olhe esta foto e identifique: tipo (CPU/Monitor/Notebook/Impressora/Telefone IP/Outro), marca aparente. Retorne APENAS JSON: {"tipo":"...","marca":"...","modelo":"..."}' },
+        { type: 'image_url', image_url: { url: dataUrl } }
+      ]
+    }];
+    const content = await chamarIA(messages, { model: 'llama-3.2-11b-vision-preview', max_tokens: 200, temperature: 0.1 });
+    const m = (content || '').match(/\{[\s\S]*\}/);
+    if (m) {
+      const parsed = JSON.parse(m[0]);
+      return parsed;
+    }
+  } catch (e) {
+    console.warn('IA Vision falhou:', e.message);
+    toast('⚠️ IA Vision indisponível. Tire foto da etiqueta normal.', 4500);
+  }
+  return null;
+}
+
+// ==================================================
+// v1.2.0: IA Copiloto — dicas proativas
+// ==================================================
+function abrirCopilotoIA() {
+  const old = document.getElementById('historyModal');
+  if (old) old.remove();
+  const items = STATE.items || [];
+  const porTipo = {};
+  items.forEach(it => { porTipo[it.tipo || 'Outro'] = (porTipo[it.tipo || 'Outro'] || 0) + 1; });
+  const sessoes = new Set(items.map(i => i.sessionId || ('l-' + (i.usuario || '')))).size;
+  const usuarios = new Set(items.map(i => i.usuario).filter(Boolean)).size;
+  const semEtiqueta = items.filter(i => /SEM ETIQUETA/i.test(i.patrimonio || i.obs || '')).length;
+  const sugestoes = [];
+  if (items.length === 0) {
+    sugestoes.push('🎯 Comece tocando em "+ Nova captura" pra cadastrar o primeiro equipamento.');
+  } else {
+    sugestoes.push('📊 Você cadastrou ' + items.length + ' equipamento(s) em ' + sessoes + ' sessão(ões).');
+    if (sessoes > 0) sugestoes.push('👥 Usuários únicos: ' + usuarios + '.');
+    if (semEtiqueta > 0) sugestoes.push('🏷️ ' + semEtiqueta + ' item(ns) sem etiqueta — lembre-se de etiquetar depois!');
+    const cpus = porTipo['CPU'] || 0;
+    const mons = porTipo['Monitor'] || 0;
+    if (cpus > 0 && mons === 0) sugestoes.push('⚠️ Você cadastrou ' + cpus + ' CPU(s) mas nenhum monitor. Conferir se faltou.');
+    if (cpus > 0 && mons / cpus < 1) sugestoes.push('💡 Razão monitor/CPU = ' + (mons/cpus).toFixed(1) + '. Estações geralmente têm 1-2 monitores por CPU.');
+    if (items.length >= 30) sugestoes.push('🎉 Mais de 30 equipamentos! Não esqueça de gerar a planilha antes de arquivar.');
+  }
+  const overlay = document.createElement('div');
+  overlay.id = 'historyModal';
+  overlay.className = 'history-modal-bg';
+  overlay.innerHTML = '<div class="history-modal">' +
+    '<button class="hm-close" id="hmCloseBtn">Fechar ×</button>' +
+    '<h3>🤖 Copiloto IA — Dicas para este inventário</h3>' +
+    '<div class="hm-arch-meta">' + sugestoes.map(s => '<div style="margin-bottom:8px;line-height:1.6;color:#E2E8F0">' + s + '</div>').join('') + '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
+// ==================================================
+// v1.2.0: Importar inventário existente (.xlsx)
+// ==================================================
+async function importarPlanilhaXlsx() {
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.xlsx,.xls';
+  const file = await new Promise((resolve) => {
+    fileInput.onchange = (e) => resolve(e.target.files && e.target.files[0]);
+    fileInput.click();
+  });
+  if (!file) return;
+  if (!window.ExcelJS) { toast('ExcelJS não carregado. Recarregue o app.', 4000); return; }
+  toast('📥 Lendo planilha…', 2500);
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    if (!ws) { toast('Planilha vazia.', 3000); return; }
+    const importados = [];
+    let header = null;
+    ws.eachRow({ includeEmpty: false }, (row, num) => {
+      const vals = row.values || [];
+      if (num === 1 || num === 2) {
+        const all = vals.map(v => (v || '').toString().toUpperCase()).join(' ');
+        if (/TIPO|MARCA|MODELO|PATRIM/.test(all)) { header = vals.map(v => (v||'').toString().toUpperCase().trim()); return; }
+      }
+      if (!header) return;
+      const obj = {};
+      header.forEach((h, i) => { obj[h] = (vals[i] || '').toString().trim(); });
+      const tipo = obj['TIPO'] || obj['EQUIPAMENTO'] || '';
+      const marca = obj['MARCA'] || '';
+      const modelo = obj['MODELO'] || '';
+      const pat = obj['PATRIMÔNIO'] || obj['PATRIMONIO'] || obj['Nº PATR'] || obj['N° PATR'] || obj['PATR'] || '';
+      const serie = obj['SÉRIE'] || obj['SERIE'] || obj['Nº SÉRIE'] || obj['N° SÉRIE'] || '';
+      const usuario = obj['USUÁRIO'] || obj['USUARIO'] || obj['RESPONSÁVEL'] || '';
+      if (tipo || pat) {
+        importados.push({
+          id: uid(),
+          sessionId: 'imp-' + Date.now() + '-' + importados.length,
+          tipo: tipo, marca: marca, modelo: modelo,
+          patrimonio: pat, serie: serie || '-', usuario: usuario,
+          obs: 'Importado da planilha ' + (file.name || ''),
+        });
+      }
+    });
+    if (importados.length === 0) { toast('Nenhum item reconhecido na planilha.', 4500); return; }
+    if (!confirm('Importar ' + importados.length + ' item(ns)?\n\nIsso vai ADICIONAR ao inventário atual.')) return;
+    STATE.items = (STATE.items || []).concat(importados);
+    await saveState();
+    updateTopbar(); updateDashboard();
+    if (typeof refreshList === 'function') refreshList();
+    toast('✓ ' + importados.length + ' item(ns) importado(s)!', 4500);
+  } catch (e) {
+    console.error(e);
+    toast('Erro ao importar: ' + (e.message || e), 5000);
+  }
+}
+
+// ==================================================
+// v1.2.0: Dashboard Analítico (Chart.js)
+// ==================================================
+function abrirDashboardAnalitico() {
+  const old = document.getElementById('historyModal');
+  if (old) old.remove();
+  const items = STATE.items || [];
+  const historico = STATE.historicoSessoes || [];
+  const todosItems = items.concat(...(historico.map(h => h.items || [])));
+  const porMarca = {};
+  const porTipo = {};
+  const porUsuario = {};
+  todosItems.forEach(it => {
+    if (it.marca) porMarca[it.marca] = (porMarca[it.marca] || 0) + 1;
+    if (it.tipo) porTipo[it.tipo] = (porTipo[it.tipo] || 0) + 1;
+    if (it.usuario) porUsuario[it.usuario] = (porUsuario[it.usuario] || 0) + 1;
+  });
+  const topMarcas = Object.entries(porMarca).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+  const topUsuarios = Object.entries(porUsuario).sort((a,b)=>b[1]-a[1]).slice(0, 5);
+  const overlay = document.createElement('div');
+  overlay.id = 'historyModal';
+  overlay.className = 'history-modal-bg';
+  let html = '<div class="history-modal" style="max-width:680px">' +
+    '<button class="hm-close" id="hmCloseBtn">Fechar ×</button>' +
+    '<h3>📊 Análise do Inventário</h3>' +
+    '<div class="hm-arch-meta">' +
+    '<div style="font-size:18px;color:#67E8F9;margin-bottom:4px"><strong>' + todosItems.length + '</strong> equipamentos no total</div>' +
+    '<div>📦 Sessão atual: ' + items.length + ' · 🗂️ Arquivados: ' + (todosItems.length - items.length) + '</div>' +
+    '</div>';
+  if (Object.keys(porTipo).length > 0) {
+    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#67E8F9;margin-bottom:8px">▸ Por tipo</div>';
+    Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).forEach(([t,n]) => {
+      const pct = Math.round((n/todosItems.length)*100);
+      html += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#E2E8F0"><span>' + t + '</span><span>' + n + ' (' + pct + '%)</span></div>' +
+        '<div style="background:rgba(13,20,36,0.7);border-radius:6px;height:6px;margin-top:2px"><div style="background:linear-gradient(90deg,#06B6D4,#34D399);width:' + pct + '%;height:100%;border-radius:6px"></div></div></div>';
+    });
+    html += '</div>';
+  }
+  if (topMarcas.length > 0) {
+    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#34D399;margin-bottom:8px">▸ Top marcas</div>';
+    topMarcas.forEach(([m,n]) => {
+      const pct = Math.round((n/todosItems.length)*100);
+      html += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#E2E8F0"><span>' + m + '</span><span>' + n + '</span></div>' +
+        '<div style="background:rgba(13,20,36,0.7);border-radius:6px;height:6px;margin-top:2px"><div style="background:#FCD34D;width:' + pct + '%;height:100%;border-radius:6px"></div></div></div>';
+    });
+    html += '</div>';
+  }
+  if (topUsuarios.length > 0) {
+    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#A78BFA;margin-bottom:8px">▸ Top usuários (equipamentos)</div>';
+    topUsuarios.forEach(([u,n]) => {
+      html += '<div class="hm-item" style="padding:8px 12px"><strong style="font-size:13px">' + u + '</strong><span style="float:right;color:#67E8F9">' + n + ' equip</span></div>';
+    });
+    html += '</div>';
+  }
+  if (historico.length > 0) {
+    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#FB7185;margin-bottom:8px">▸ Inventários arquivados</div>';
+    historico.forEach(h => {
+      html += '<div class="hm-item" style="padding:8px 12px"><strong style="font-size:13px">' + (h.setor || '-') + '</strong>' +
+        '<span style="float:right;color:#94A3B8;font-size:11px">' + (h.totalItens || 0) + ' itens · ' + (h.data ? fmtDateBR(h.data) : '') + '</span></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+  document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
 function popularUsuariosDatalist() {
   const dl = document.getElementById('usuariosList');
   if (!dl) return;
@@ -2761,6 +3104,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Wizard
   $('wizNext').onclick = () => wizardNext();
+  // v1.1.2: botão "Sem etiqueta"
+  if ($('wizSemEtiqueta')) $('wizSemEtiqueta').onclick = () => marcarSemEtiqueta();
   $('wizBack').onclick = () => wizardBack();
   $('wizSkip').onclick = () => { if (!confirm('Pular essa etapa?')) return; wizardSkip(); };
   if ($('wizSaveNext')) $('wizSaveNext').onclick = () => wizardSaveAndContinue();
@@ -2812,7 +3157,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if ($('camTorch')) $('camTorch').onclick = () => camToggleTorch();
   if ($('camZoomIn')) $('camZoomIn').onclick = () => camApplyZoom(CAM.zoom + 0.5);
   if ($('camZoomOut')) $('camZoomOut').onclick = () => camApplyZoom(CAM.zoom - 0.5);
-  if ($('camAuto')) $('camAuto').onchange = (e) => { CAM.autoDetect = e.target.checked; };
+  // v1.1.2: auto-detect desativado — checkbox Auto não tem mais função
 
   async function processCapturedFile(file) {
     if (!file) return;
@@ -3400,6 +3745,28 @@ function extrairCandidatosPadrao(text) {
   }
   return cands.slice(0, 5);
 }
+
+// v1.2.0: Atalhos de teclado (Enter avança, Esc cancela, Ctrl+S salva)
+window.addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
+  // Enter no wizard avança
+  if (e.key === 'Enter' && document.querySelector('#screen-wizard.active')) {
+    e.preventDefault();
+    const btn = document.getElementById('wizNext');
+    if (btn) btn.click();
+  }
+  // Esc fecha modal aberto
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal');
+    if (modal) modal.remove();
+  }
+  // Ctrl+S força salvamento manual
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    if (typeof saveState === 'function') saveState();
+    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('💾 Salvo (manual)', 'ok');
+  }
+});
 
 window.addEventListener('beforeunload', (e) => {
   if (STATE.items && STATE.items.length > 0) {

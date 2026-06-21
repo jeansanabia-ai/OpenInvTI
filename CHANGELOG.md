@@ -2,6 +2,113 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.2.0] - 2026-06-18 (versão MINOR — produto maduro)
+
+### 🆕 8 features novas
+
+#### 🔲 Reconhecimento de código de barras (BarcodeDetector API)
+- Botão **"🔲 Código de barras"** no wizard de captura
+- Lê CODE_128, EAN-13, EAN-8, CODE_39, QR Code, Codabar via API nativa do Chrome (instantâneo, <1s)
+- Preenche o campo Patrimônio automaticamente
+- Funciona melhor que OCR pra etiquetas com código de barras impresso
+- Fallback: se browser não suportar, avisa pra usar OCR
+
+#### 🤖 IA Vision — identifica equipamento pela foto
+- Botão **"🤖 IA identifica"** no wizard
+- Tira foto do equipamento (não da etiqueta) — útil quando etiqueta é ilegível
+- IA Llama 3.2 11B Vision via Groq identifica: tipo + marca + modelo
+- Preenche os campos automaticamente, você confere e ajusta
+
+#### 📊 Dashboard analítico dentro do app
+- Botão **"📊 Análise"** na tela inicial
+- Visualiza em tempo real (sem precisar abrir planilha):
+  - Total de equipamentos (atual + arquivados)
+  - **Distribuição por tipo** com barras coloridas
+  - **Top 8 marcas** com gráfico horizontal
+  - **Top 5 usuários** com mais equipamentos
+  - Lista de **inventários arquivados** com totais
+
+#### 📥 Importar planilha .xlsx existente
+- Botão **"📥 Importar"** na tela inicial
+- Aceita .xlsx existente (do próprio app ou planilha externa com colunas padrão: Tipo, Marca, Modelo, Patrimônio, Série, Usuário)
+- Detecta cabeçalho automaticamente (linha 1 ou 2)
+- Confirma antes de importar e ADICIONA ao inventário atual
+- Cada item importado vem com obs "Importado da planilha XXX.xlsx"
+
+#### 🤖 Copiloto IA — sugestões proativas
+- Botão **"🤖 Copiloto"** na tela inicial
+- Analisa o inventário atual e dá dicas:
+  - "Você cadastrou X equipamentos em Y sessões"
+  - "Razão monitor/CPU = 1.2 (normal é 1-2)"
+  - "Você cadastrou 5 CPUs mas nenhum monitor — conferir se faltou"
+  - "3 itens SEM ETIQUETA — lembre-se de etiquetar depois"
+  - "Mais de 30 equipamentos! Gera a planilha antes de arquivar"
+
+#### 💾 Indicador de auto-save visual
+- Pequena bolha verde **"💾 Salvo"** aparece no canto inferior direito **a cada save automático**
+- Confiança visual de que os dados estão seguros
+- Some sozinha após 2s
+
+#### 🖥️ Versão desktop otimizada
+- Media queries pra telas >= 900px:
+  - App expande pra 980px de largura
+  - Padding generoso (24px x 32px)
+  - Hero title 32px (mais imponente)
+  - Exec grid em 6 colunas
+  - Cards do dashboard maiores
+  - Fonte 14px (legível em monitor)
+- **Atalhos de teclado** (PC):
+  - `Enter` → avança no wizard
+  - `Esc` → fecha modais abertos
+  - `Ctrl+S` → força salvamento manual (toast "Salvo manual")
+- Aviso discreto no header com os atalhos
+
+#### 🛠️ Modo colaborativo (preparação)
+- Arquitetura documentada no `ROADMAP_v1.2.0.md`
+- Próxima minor (v1.3.0): implementação completa via Cloudflare Durable Objects
+- Por enquanto: presets compartilháveis (`?preset=` já funciona)
+
+### Mudado
+- Cache do SW: `openinvti-v1.2.0-prod`
+- Subtítulo: `Inventário de TI Inteligente · v1.2.0`
+
+### Versão MINOR
+v1.2.0 marca o salto de "produto resiliente" pra "produto rico em recursos". 8 features novas + base sólida pra modo colaborativo futuro.
+
+
+## [1.1.2] - 2026-06-18 (foco: captura manual + aprendizado)
+
+### Removido
+- **🚫 Auto-detect contínuo da câmera**: removido o loop OCR que rodava a cada 1.2s. Causava falsos positivos (tomadas, códigos de barras) e gastava bateria. **A câmera agora é puramente manual**: você aponta, posiciona, aperta o botão central → foto é tirada e processada.
+
+### Adicionado
+- **🏷️ Botão "Sem etiqueta - etiquetar depois"**: visível só nos passos de equipamento (CPU/Monitor/etc). Marca patrimônio como "SEM ETIQUETA" e adiciona observação "PENDENTE ETIQUETAR" — fica fácil filtrar depois na planilha pra etiquetar fisicamente.
+- **🧠 Autocomplete inteligente**: o app agora **APRENDE** com cada marca/modelo que você digita. Salva em base local persistente. Próximas vezes sugere automaticamente:
+  - **Marcas mais usadas** aparecem primeiro
+  - **Modelos por marca** (digita "Lenovo" → sugere modelos Lenovo cadastrados antes)
+  - Tudo offline, instantâneo, sem precisar de IA
+- **🤖 IA Groq** continua disponível pra sugerir modelo via OCR quando você tira foto (fallback inteligente).
+
+### Mudado
+- Cache do SW: `openinvti-v1.1.2-prod`.
+- Subtítulo: `Inventário de TI Inteligente · v1.1.2`.
+- Checkbox "Auto" da câmera está oculto (não tem mais função).
+
+### Por quê dessa mudança
+A auto-captura era ambiciosa demais — gerava falsos positivos e consumia muita bateria. A captura manual + OCR robusto após foto + autocomplete inteligente é **muito mais eficiente** na prática:
+1. Você posiciona a foto exatamente como quer
+2. Tira a foto quando estiver pronta
+3. OCR roda 1 vez (rápido) e preenche os campos
+4. Se patrimônio não bater, você digita e o app aprende pra próxima
+
+### Como confirmar
+1. Limpa dados do app
+2. Abre câmera — **não tem mais loop de "Procurando padrão..."**
+3. Aponta pra etiqueta, aperta botão central
+4. OCR roda 1x, preenche campos
+5. Digita modelo novo "Lenovo M75Q" → na próxima captura Lenovo, sugere "M75Q" automaticamente
+
+
 ## [1.1.1] - 2026-06-18 (hotfix OCR — pós teste real)
 
 ### 🔴 BUGFIX CRÍTICO — OCR não capturava etiquetas claras

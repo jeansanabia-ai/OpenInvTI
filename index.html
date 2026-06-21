@@ -18,7 +18,7 @@
     <header class="topbar">
       <div>
         <h1 id="topTitle">OpenInvTI</h1>
-        <div class="sub" id="topSub">Inventário de TI Inteligente · v1.1.1</div>
+        <div class="sub" id="topSub">Inventário de TI Inteligente · v1.2.0</div>
       </div>
       <div class="topbar-actions">
         <div class="ia-badge" id="iaBadge" title="IA ativa — extração automática habilitada" style="display:none">🤖 IA</div>
@@ -113,6 +113,11 @@
         <input type="text" id="tituloInv" value="INVENTARIO DE EQUIPAMENTOS DE TI" />
         <div class="hint">Aparece como título da planilha gerada.</div>
       </div>
+      <div class="row-actions" style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <button type="button" class="btn-mini" id="btnImport" title="Importar planilha .xlsx existente">📥 Importar</button>
+        <button type="button" class="btn-mini" id="btnAnalytics" title="Dashboard analítico do inventário">📊 Análise</button>
+        <button type="button" class="btn-mini" id="btnCopilot" title="Sugestões inteligentes da IA">🤖 Copiloto</button>
+      </div>
       <button class="btn btn-primary" id="btnStart">▶ Iniciar inventário</button>
       <button class="btn btn-secondary" id="btnResume" style="display:none">↻ Retomar inventário em andamento</button>
     </section>
@@ -145,6 +150,10 @@
       <!-- Foto e OCR (compartilhado entre passos) -->
       <div class="photo-section" id="wizPhotoBox">
         <img class="photo-preview" id="wizPhoto" alt="Foto" />
+        <div class="wiz-capture-extras" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button type="button" class="btn-mini" id="wizBarcode" title="Ler código de barras">🔲 Código de barras</button>
+          <button type="button" class="btn-mini" id="wizVision" title="IA identifica o equipamento">🤖 IA identifica</button>
+        </div>
         <label class="cap-btn">
           📷 <span id="wizCamLabel">Tirar foto da etiqueta</span>
           <input type="file" accept="image/*" capture="environment" id="wizInput" />
@@ -255,6 +264,7 @@
       <div class="footbar">
         <button class="btn btn-secondary" id="wizBack" style="flex:1">← Voltar</button>
         <button class="btn btn-secondary" id="wizSkip" style="flex:1; display:none">Pular</button>
+        <button class="btn btn-secondary" id="wizSemEtiqueta" style="flex:1.2; background:rgba(245,158,11,0.18); border-color:rgba(245,158,11,0.5); color:#FCD34D">🏷️ Sem etiqueta</button>
         <button class="btn btn-secondary" id="wizSaveNext" style="flex:1; display:none">+ Adicionar outro</button>
         <button class="btn btn-success" id="wizFinishInv" style="flex:1.2; display:none">✓ Finalizar inventário</button>
         <button class="btn btn-primary" id="wizNext" style="flex:1.3">Próximo →</button>
@@ -458,8 +468,8 @@
         </button>
         <div class="cam-auto-group">
           <label class="cam-auto-toggle">
-            <input type="checkbox" id="camAuto" checked />
-            <span>Auto</span>
+            <input type="checkbox" id="camAuto" style="display:none" />
+            <span style="display:none">Auto</span>
           </label>
         </div>
       </div>
