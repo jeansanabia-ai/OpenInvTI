@@ -16,6 +16,12 @@ Todas as mudanças notáveis serão documentadas neste arquivo.
 
 Todos esses cinco botões existiam na interface mas não tinham nenhuma ação ligada no código (cliques não faziam nada). Agora estão conectados às suas funções.
 
+### 🎨 Correção do modo claro
+- **Modo claro estava quebrado** (textos invisíveis, cards escuros, botões sem texto legível). A causa eram seletores CSS inválidos no bloco "LIGHT MODE refinado": usavam `html.light-mode body, body.light-mode X`, mas o tema é aplicado com a classe em `<html>`, então a parte `body.light-mode X` nunca casava e os elementos mantinham as cores do modo escuro. Corrigidos 24 seletores para `html.light-mode X`.
+- Agora ficam corretos no modo claro: título/subtítulo da home, cards do dashboard (Sessões/Itens/Usuários) e seus rótulos, campos do formulário e o modal de histórico.
+- Adicionado estilo de modo claro para os botões de ação (`.btn-mini`: Importar/Análise/Copiloto) — antes ficavam escuros com texto ilegível.
+- Contraste verificado automaticamente (WCAG): todos os elementos principais ≥ 4.5:1 (hero-title ~17:1, botões ~7.5:1).
+
 ### 🧹 Observação técnica
 - A tela de captura manual avulsa (`screen-capture`, com o botão "Salvar item") é código órfão: não há nenhum caminho na interface que a abra, então ela não é exibida ao usuário. Mantida como está (inofensiva) para evitar risco de remoção.
 
