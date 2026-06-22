@@ -2,6 +2,41 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.2.2] - 2026-06-22 (PATCH — tipo por passo + botões ativados)
+
+### 🐛 Correção de tipo
+- **Tipo do equipamento agora respeita o passo do wizard.** Nos passos de **Monitor** (1 e 2) o tipo é sempre "Monitor" e no passo de **Telefone IP** é sempre "Telefone IP" — o OCR/IA não pode mais sobrescrever para "Outro" (ex.: telefone Avaya que era classificado como "Outro"). No passo de **CPU** a autodetecção continua ativa (pode virar Notebook, etc.).
+
+### 🔌 Botões que estavam inertes agora funcionam
+- **🔲 Código de barras** (`wizBarcode`): lê o código pela câmera e preenche o campo Patrimônio.
+- **🤖 IA identifica** (`wizVision`): identifica tipo/marca/modelo pela foto do equipamento (respeitando a trava de tipo em Monitor/Telefone; só preenche marca/modelo se estiverem vazios).
+- **📥 Importar** (`btnImport`): importa um inventário de planilha .xlsx existente.
+- **📊 Análise** (`btnAnalytics`): abre o dashboard analítico do inventário.
+- **🤖 Copiloto** (`btnCopilot`): mostra sugestões inteligentes sobre o inventário.
+
+Todos esses cinco botões existiam na interface mas não tinham nenhuma ação ligada no código (cliques não faziam nada). Agora estão conectados às suas funções.
+
+### 🧹 Observação técnica
+- A tela de captura manual avulsa (`screen-capture`, com o botão "Salvar item") é código órfão: não há nenhum caminho na interface que a abra, então ela não é exibida ao usuário. Mantida como está (inofensiva) para evitar risco de remoção.
+
+### ✅ Testes
+- Suíte automatizada (jsdom) ampliada: carregamento sem erros, todos os handlers de botão ligados após o init, modais de Copiloto e Análise renderizando, fluxo de nome opcional e trava de tipo. Todos passando.
+
+## [1.2.1] - 2026-06-22 (PATCH — usabilidade + correções)
+
+### ✏️ Melhorias de usabilidade
+- **Nome do usuário agora é OPCIONAL.** O passo "Usuário" não bloqueia mais a finalização. É possível concluir a captura sem identificar o nome (a sessão fica registrada como "(sem usuário)"). Novo botão "Sem usuário", placeholder e textos atualizados deixam claro que o campo é opcional.
+- **Exibição consistente de sessões sem nome:** o rótulo "(sem usuário)" aparece de forma padronizada na lista, na planilha Excel (aba principal) e no PDF.
+- **Contagem de usuários únicos correta:** estações sem nome não são mais contadas como usuário no dashboard nem nos relatórios (já usavam filtro, validado nesta versão).
+
+### 🐛 Correções
+- **Bug crítico de TDZ no wizard:** `isEquip` era usado antes da declaração em `wizardRender()`, o que podia quebrar a renderização dos passos. Declarações movidas para o topo da função.
+- **Arquivo `app.js` corrompido:** removidos 443 bytes nulos (NUL) no final do arquivo que invalidavam o JavaScript.
+- Atualizado nome do cache do Service Worker (`openinvti-v1.2.1-prod`) para garantir que os usuários recebam a correção.
+
+### ✅ Testes
+- Suíte funcional automatizada (jsdom): 9 testes cobrindo carregamento sem erros, renderização de todos os passos, finalizar/pular/salvar-e-continuar sem nome, finalizar com nome, dashboard e lista. Todos passando.
+
 ## [1.2.0] - 2026-06-18 (versão MINOR — produto maduro)
 
 ### 🆕 8 features novas

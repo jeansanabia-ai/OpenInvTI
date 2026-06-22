@@ -1,10 +1,10 @@
 @echo off
 chcp 65001 >nul
-title OpenInvTI - Desbloquear e Deploy v1.2.0
+title OpenInvTI - Desbloquear e Deploy v1.2.2
 color 0A
 
 echo ============================================================
-echo   OpenInvTI v1.2.0 - Desbloqueio + Deploy Automatico
+echo   OpenInvTI v1.2.2 - Desbloqueio + Deploy Automatico
 echo ============================================================
 echo.
 echo Este script vai:
@@ -46,7 +46,7 @@ echo.
 
 echo [4/4] Commit e Push...
 git add .
-git commit -m "v1.2.0: BarcodeDetector + Dashboard + Vision + Importar + Copiloto + Desktop"
+git commit -m "v1.2.2: nome opcional + tipo travado por passo + 5 botoes ativados + correcoes"
 echo.
 echo Enviando para o GitHub (vai pedir Personal Access Token)...
 git push
@@ -60,7 +60,7 @@ echo Em 60 segundos o GitHub Pages atualiza automaticamente em:
 echo   https://jeansanabia-ai.github.io/OpenInvTI/
 echo.
 echo No celular: Configuracoes - Apps - OpenInvTI - Limpar DADOS
-echo Depois abra o app - subtitulo deve mostrar v1.2.0
+echo Depois abra o app - subtitulo deve mostrar v1.2.2
 echo.
 echo Pressione qualquer tecla para fechar...
 pause >nul

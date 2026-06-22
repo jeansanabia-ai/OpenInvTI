@@ -12,7 +12,7 @@
 const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // v1.0.12: proxy Cloudflare já fixado
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.2';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -131,7 +131,7 @@ const WIZARD_STEPS = [
   { key: 'monitor2', titulo: 'Monitor 2', sub: 'Tire foto da etiqueta do segundo monitor (se existir).', cam: 'Tirar foto do monitor 2', tipoDefault: 'Monitor', skippable: true, skipLabel: 'Só 1 monitor' },
   { key: 'telefone', titulo: 'Telefone IP', sub: 'Tire foto da etiqueta do telefone IP (se existir).', cam: 'Tirar foto do telefone', tipoDefault: 'Telefone IP', skippable: true, skipLabel: 'Sem telefone IP' },
   { key: 'ramal', titulo: 'Ramal', sub: 'Digite o ramal do telefone IP. Se não tem ramal, pode pular.', cam: '', tipoDefault: '', skippable: true, skipLabel: 'Sem ramal' },
-  { key: 'usuario', titulo: 'Usuário', sub: 'Tire foto da tela com o nome do usuário OU digite manualmente.', cam: 'Tirar foto da tela', tipoDefault: '', skippable: false },
+  { key: 'usuario', titulo: 'Usuário (opcional)', sub: 'Opcional: tire foto da tela com o nome do usuário OU digite manualmente. Pode finalizar sem preencher.', cam: 'Tirar foto da tela', tipoDefault: '', skippable: true, skipLabel: 'Sem usuário' },
 ];
 
 const DB_NAME = 'inventario-ti';
@@ -1135,6 +1135,10 @@ function wizardRender() {
   const step = WIZARD_STEPS[STATE.wizardStep];
   const total = WIZARD_STEPS.length;
   const stepNum = STATE.wizardStep + 1;
+  // v1.2.1: declarados no topo para evitar erro de TDZ (eram usados antes da declaração)
+  const isEquip = ['cpu', 'monitor1', 'monitor2', 'telefone'].includes(step.key);
+  const isRamal = step.key === 'ramal';
+  const isUser = step.key === 'usuario';
 
   // Progress bar
   $('wizProgFill').style.width = (stepNum / total * 100) + '%';
@@ -1154,10 +1158,6 @@ function wizardRender() {
   if ($('wizFinishInv')) $('wizFinishInv').style.display = (step.key === 'usuario') ? 'flex' : 'none';
 
   // Mostrar campos certos
-  const isEquip = ['cpu', 'monitor1', 'monitor2', 'telefone'].includes(step.key);
-  const isRamal = step.key === 'ramal';
-  const isUser = step.key === 'usuario';
-
   $('wizFieldsEquip').style.display = isEquip ? 'block' : 'none';
   $('wizFieldsRamal').style.display = isRamal ? 'block' : 'none';
   $('wizFieldsUser').style.display = isUser ? 'block' : 'none';
@@ -1189,7 +1189,7 @@ function wizardRender() {
     monitor2: '📸 Se a estação tem 2 monitores, fotografe o segundo. Se só tem 1, toque em "Só 1 monitor".',
     telefone: '📸 Foto da etiqueta do telefone IP (se houver). Se não tem telefone, toque em "Sem telefone IP".',
     ramal: '📞 Digite o número do ramal (3-5 dígitos). Pode pular se não tem.',
-    usuario: '📸 Fotografe a tela mostrando o nome do usuário OU digite manualmente abaixo. Evite reflexos.',
+    usuario: '📸 Opcional: fotografe a tela com o nome do usuário OU digite abaixo. Pode finalizar sem preencher.',
   };
   $('wizHint').innerHTML = `<strong style="color:#1F4E78">${step.titulo}</strong><br>${hints[step.key] || ''}`;
 
@@ -1282,14 +1282,8 @@ function wizardCaptureCurrent() {
 }
 
 function wizardValidateCurrent() {
-  const step = WIZARD_STEPS[STATE.wizardStep];
-  // Passos de equipamento: NÃO bloqueia o avanço (usuário pode tirar foto depois e voltar)
-  // Único campo obrigatório: nome do usuário no último passo
-  if (step.key === 'usuario') {
-    if (!$('wUsuario').value.trim()) {
-      return 'Para finalizar, identifique o usuário desta estação (tire foto da tela ou digite o nome).';
-    }
-  }
+  // v1.2.1: nome do usuário agora é OPCIONAL — nenhum passo bloqueia o avanço.
+  // O usuário pode finalizar sem identificar o nome (fica como "(sem usuário)").
   return null;
 }
 
@@ -1347,6 +1341,13 @@ function wizardSkip() {
   const step = WIZARD_STEPS[STATE.wizardStep];
   if (!step.skippable) return;
 
+  // v1.2.1: pular o passo Usuário (último) finaliza sem nome
+  if (step.key === 'usuario') {
+    STATE.wizardUsuario = '';
+    wizardFinish();
+    return;
+  }
+
   // Limpa item nesse slot
   if (['cpu', 'monitor1', 'monitor2', 'telefone'].includes(step.key)) {
     const idx = ['cpu', 'monitor1', 'monitor2', 'telefone'].indexOf(step.key);
@@ -1382,8 +1383,8 @@ function wizardFinish() {
   const usr = STATE.wizardUsuario.trim();
   const ram = STATE.wizardRamal.trim();
   const sid = STATE.wizardSessionId;
-
-  if (!usr) { toast('Identifique o usuário antes de finalizar.', 3000); return; }
+  // v1.2.1: nome opcional — sem nome a sessão é salva como "(sem usuário)"
+  const usrLabel = usr || '(sem usuário)';
 
   // Remove itens antigos dessa sessão (caso seja edição)
   STATE.items = STATE.items.filter((it) => it.sessionId !== sid);
@@ -1410,28 +1411,16 @@ function wizardFinish() {
   updateTopbar(); updateDashboard();
   refreshList();
   showScreen('screen-list');
-  toast(`Sessão de ${usr} salva (${valid.length} equipamento${valid.length > 1 ? 's' : ''}).`);
+  toast(`Sessão de ${usrLabel} salva (${valid.length} equipamento${valid.length > 1 ? 's' : ''}).`);
 }
 
 function wizardSaveAndContinue() {
   // Salva sessao atual e abre wizard novo imediatamente
   // Primeiro captura o que ja foi digitado na tela atual
   wizardCaptureCurrent();
+  // v1.2.1: nome opcional — salva mesmo sem identificar o usuário
   const usr = (STATE.wizardUsuario || '').trim();
-  if (!usr) {
-    // Auto-navega pra etapa do usuario pra usuario poder preencher
-    const usrStepIdx = WIZARD_STEPS.findIndex((s) => s.key === 'usuario');
-    if (usrStepIdx >= 0 && STATE.wizardStep !== usrStepIdx) {
-      STATE.wizardStep = usrStepIdx;
-      renderWizard();
-      toast('Antes de salvar e adicionar outro equipamento, identifique o usuario desta estacao (tire foto da tela ou digite o nome).', 4500);
-    } else {
-      toast('Identifique o usuario antes de continuar (campo abaixo).', 3500);
-      // Foca no campo
-      try { $('wUsuario') && $('wUsuario').focus(); } catch (e) {}
-    }
-    return;
-  }
+  const usrLabel = usr || '(sem usuário)';
   const ram = (STATE.wizardRamal || '').trim();
   const sid = STATE.wizardSessionId;
   STATE.items = STATE.items.filter((it) => it.sessionId !== sid);
@@ -1440,7 +1429,7 @@ function wizardSaveAndContinue() {
   for (const it of valid) { it.usuario = usr; it.ramal = ram; STATE.items.push(it); }
   saveState();
   updateTopbar(); updateDashboard();
-  toast('Sessao de ' + usr + ' salva. Comece nova captura.');
+  toast('Sessao de ' + usrLabel + ' salva. Comece nova captura.');
   // Reinicia o wizard limpo
   startWizard(null);
 }
@@ -1977,7 +1966,7 @@ async function gerarPlanilha() {
     ws.getCell(r, 4).value = it.modelo || '-';
     ws.getCell(r, 5).value = it.patrimonio || 'Nao capturado';
     ws.getCell(r, 6).value = it.serie || '-';
-    ws.getCell(r, 7).value = it.usuario || '';
+    ws.getCell(r, 7).value = it.usuario || '(sem usuário)';
     ws.getCell(r, 8).value = it.ramal || '';
     ws.getCell(r, 9).value = it.obs || '';
     for (let c = 1; c <= 9; c++) {
@@ -3102,6 +3091,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('btnAdd').onclick = () => { startWizard(null); };
   $('btnCancel') && ($('btnCancel').onclick = () => { STATE.editingId = null; showScreen('screen-list'); });
 
+  // v1.2.2: botões da tela inicial (estavam sem ação ligada)
+  if ($('btnImport')) $('btnImport').onclick = async () => {
+    try { await importarPlanilhaXlsx(); } catch (e) { toast('Erro ao importar: ' + (e.message || e), 4000); }
+  };
+  if ($('btnAnalytics')) $('btnAnalytics').onclick = () => {
+    try { abrirDashboardAnalitico(); } catch (e) { toast('Erro ao abrir análise: ' + (e.message || e), 4000); }
+  };
+  if ($('btnCopilot')) $('btnCopilot').onclick = () => {
+    try { abrirCopilotoIA(); } catch (e) { toast('Erro ao abrir copiloto: ' + (e.message || e), 4000); }
+  };
+
   // Wizard
   $('wizNext').onclick = () => wizardNext();
   // v1.1.2: botão "Sem etiqueta"
@@ -3109,6 +3109,43 @@ window.addEventListener('DOMContentLoaded', async () => {
   $('wizBack').onclick = () => wizardBack();
   $('wizSkip').onclick = () => { if (!confirm('Pular essa etapa?')) return; wizardSkip(); };
   if ($('wizSaveNext')) $('wizSaveNext').onclick = () => wizardSaveAndContinue();
+  // v1.2.2: botão "Código de barras" — lê o código e preenche o patrimônio
+  if ($('wizBarcode')) $('wizBarcode').onclick = async () => {
+    try {
+      const code = await lerCodigoBarras();
+      if (code && $('wPatrimonio')) {
+        $('wPatrimonio').value = code;
+        $('wPatrimonio').style.transition = 'background 0.3s';
+        $('wPatrimonio').style.background = 'rgba(52, 211, 153, 0.15)';
+        setTimeout(() => { $('wPatrimonio').style.background = ''; }, 1500);
+      }
+    } catch (e) { toast('Erro ao ler código: ' + (e.message || e), 4000); }
+  };
+  // v1.2.2: botão "IA identifica" — identifica tipo/marca/modelo pela foto do equipamento
+  if ($('wizVision')) $('wizVision').onclick = async () => {
+    try {
+      const dados = await identificarEquipamentoComIA();
+      if (!dados) return;
+      const step = WIZARD_STEPS[STATE.wizardStep];
+      const flash = (el) => {
+        if (!el) return;
+        el.style.transition = 'background 0.3s';
+        el.style.background = 'rgba(52, 211, 153, 0.15)';
+        setTimeout(() => { el.style.background = ''; }, 1500);
+      };
+      if (dados.marca && $('wMarca') && !$('wMarca').value) { $('wMarca').value = dados.marca; flash($('wMarca')); }
+      if (dados.modelo && $('wModelo') && !$('wModelo').value) { $('wModelo').value = dados.modelo; flash($('wModelo')); }
+      const tipoTravado = ['monitor1', 'monitor2', 'telefone'].includes(step.key);
+      if (tipoTravado) {
+        if ($('wTipo')) $('wTipo').value = step.tipoDefault;
+      } else if (dados.tipo && $('wTipo')) {
+        const opcoes = Array.from($('wTipo').options).map((o) => o.value);
+        if (opcoes.includes(dados.tipo) && $('wTipo').value !== dados.tipo) { $('wTipo').value = dados.tipo; flash($('wTipo')); }
+      }
+      const achados = [dados.tipo, dados.marca, dados.modelo].filter(Boolean).join(', ');
+      toast(achados ? '🤖 IA identificou: ' + achados + '. Confira/edite.' : '🤖 IA não conseguiu identificar. Tire foto da etiqueta.', 4000);
+    } catch (e) { toast('Erro na IA: ' + (e.message || e), 4000); }
+  };
   // v1.1.0: Finalizar inventário do wizard
   if ($('wizFinishInv')) $('wizFinishInv').onclick = async () => {
     try { if (typeof wizardSaveAndContinue === 'function') await wizardSaveAndContinue(); } catch (e) {}
@@ -3251,8 +3288,13 @@ window.addEventListener('DOMContentLoaded', async () => {
           const cur = $('wObs').value.trim();
           $('wObs').value = cur ? (cur + (cur.endsWith('.') ? ' ' : '. ') + finalDados.observacoes) : finalDados.observacoes;
         }
-        // Tipo: sobrescreve se a IA/heurística sugeriu algo diferente do default do passo
-        if (finalDados.tipo && $('wTipo')) {
+        // v1.2.2: Tipo TRAVADO nos passos de Monitor e Telefone — o passo já define o tipo,
+        // então OCR/IA não pode sobrescrever (evita ex.: telefone virar "Outro").
+        // No passo de CPU mantém a autodetecção (pode ser Notebook etc.).
+        const tipoTravado = ['monitor1', 'monitor2', 'telefone'].includes(step.key);
+        if (tipoTravado) {
+          if ($('wTipo')) $('wTipo').value = step.tipoDefault;
+        } else if (finalDados.tipo && $('wTipo')) {
           const opcoes = Array.from($('wTipo').options).map(o => o.value);
           if (opcoes.includes(finalDados.tipo) && $('wTipo').value !== finalDados.tipo) {
             $('wTipo').value = finalDados.tipo;
@@ -3460,7 +3502,7 @@ async function gerarPDF() {
     linhas.push([
       n++, it.tipo || '', it.marca || '-', it.modelo || '-',
       it.patrimonio || 'Nao capturado', it.serie || '-',
-      it.usuario || '', it.ramal || '', (it.obs || '').slice(0, 60)
+      it.usuario || '(sem usuário)', it.ramal || '', (it.obs || '').slice(0, 60)
     ]);
   }
 
