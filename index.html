@@ -150,14 +150,18 @@
       <!-- Foto e OCR (compartilhado entre passos) -->
       <div class="photo-section" id="wizPhotoBox">
         <img class="photo-preview" id="wizPhoto" alt="Foto" />
-        <div class="wiz-capture-extras" style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
-          <button type="button" class="btn-mini" id="wizBarcode" title="Ler código de barras">🔲 Código de barras</button>
-          <button type="button" class="btn-mini" id="wizVision" title="IA identifica o equipamento">🤖 IA identifica</button>
-        </div>
-        <label class="cap-btn">
+        <!-- v1.2.2: método PRINCIPAL — código de barras (disparo manual) -->
+        <button type="button" class="barcode-cta" id="wizBarcode" title="Ler o código de barras da etiqueta">
+          🔲 Ler código de barras
+          <span class="barcode-cta-tag">recomendado</span>
+        </button>
+        <label class="cap-btn cap-btn-alt">
           📷 <span id="wizCamLabel">Tirar foto da etiqueta</span>
           <input type="file" accept="image/*" capture="environment" id="wizInput" />
         </label>
+        <div class="wiz-capture-extras" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;justify-content:center">
+          <button type="button" class="btn-mini btn-mini-opt" id="wizVision" title="Identificação por IA (ajuda opcional)">🤖 IA identifica (opcional)</button>
+        </div>
         <div class="ocr-progress" id="wizProg"><div class="bar"></div></div>
         <div class="photo-status" id="wizStatus"></div>
         <div class="hint" id="wizHint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left"></div>
@@ -271,82 +275,6 @@
       </div>
     </section>
 
-    <!-- TELA 3: Captura -->
-    <section class="screen" id="screen-capture">
-      <div class="photo-section" id="photoLabelBox">
-        <h3>1. Foto da etiqueta do equipamento</h3>
-        <img class="photo-preview" id="photoLabel" alt="Etiqueta" />
-        <label class="cap-btn">
-          📷 Tirar foto da etiqueta
-          <input type="file" accept="image/*" capture="environment" id="inputLabel" />
-        </label>
-        <div class="ocr-progress" id="progLabel"><div class="bar"></div></div>
-        <div class="photo-status" id="statusLabel"></div>
-        <div class="hint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left">
-          <strong style="color:#1F4E78">Etiqueta</strong><br>
-          📸 Centralize a etiqueta e mantenha foco nos números e o máximo de informação que possuir. Quanto mais legível a foto, melhor será a identificação automática.
-        </div>
-      </div>
-
-      <div class="photo-section" id="photoUserBox">
-        <h3>2. Foto da tela do usuário</h3>
-        <img class="photo-preview" id="photoUser" alt="Tela usuário" />
-        <label class="cap-btn">
-          📷 Tirar foto da tela
-          <input type="file" accept="image/*" capture="environment" id="inputUser" />
-        </label>
-        <div class="ocr-progress" id="progUser"><div class="bar"></div></div>
-        <div class="photo-status" id="statusUser"></div>
-        <div class="hint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left">
-          <strong style="color:#1F4E78">Usuário</strong><br>
-          📸 Fotografe a tela mostrando o nome do usuário. Evite reflexos e mantenha o texto nítido.
-        </div>
-      </div>
-
-      <div class="section-title">Dados do equipamento (confira/corrija)</div>
-
-      <div class="field">
-        <label for="fTipo">Tipo</label>
-        <select id="fTipo">
-          <option value="CPU">CPU</option>
-          <option value="Monitor">Monitor</option>
-          <option value="Telefone IP">Telefone IP</option>
-          <option value="Notebook">Notebook</option>
-          <option value="Impressora">Impressora</option>
-          <option value="Outro">Outro</option>
-        </select>
-      </div>
-      <div class="field">
-        <label for="fMarca">Marca</label>
-        <input type="text" id="fMarca" placeholder="Ex.: Positivo, Dell, HP, LG..." />
-      </div>
-      <div class="field">
-        <label for="fModelo">Modelo</label>
-        <input type="text" id="fModelo" placeholder="Ex.: Master C4400 Mini" />
-      </div>
-      <div class="field">
-        <label for="fPatrimonio">Nº de Patrimônio</label>
-        <input type="text" id="fPatrimonio" placeholder="Número ou código de patrimônio" />
-      </div>
-      <div class="field">
-        <label for="fSerie">Nº de Série</label>
-        <input type="text" id="fSerie" placeholder="Ex.: 5A407GK14 (use - se não houver)" />
-      </div>
-      <div class="field">
-        <label for="fUsuario">Usuário</label>
-        <input type="text" id="fUsuario" placeholder="Nome completo" />
-      </div>
-      <div class="field">
-        <label for="fObs">Observações</label>
-        <textarea id="fObs" placeholder="Ex.: Etiqueta DDE/CDT 056050, ramal 5190..."></textarea>
-      </div>
-
-      <div class="footbar">
-        <button class="btn btn-secondary" id="btnCancel" style="flex:1">Cancelar</button>
-        <button class="btn btn-primary" id="btnSaveItem" style="flex:1.3">Salvar item</button>
-      </div>
-    </section>
-
     <!-- TELA 4: Finalizar — v1.0.10: resumo executivo moderno + ações reorganizadas -->
     <section class="screen" id="screen-finish">
       <!-- Card principal: cabeçalho do inventário -->
@@ -449,7 +377,8 @@
           <div class="cam-guide-corner tr"></div>
           <div class="cam-guide-corner bl"></div>
           <div class="cam-guide-corner br"></div>
-          <div class="cam-guide-label">Centralize a etiqueta aqui</div>
+          <div class="cam-scan-line"></div>
+          <div class="cam-guide-label">Alinhe a etiqueta / código de barras na linha</div>
         </div>
         <div class="cam-detect-status" id="camDetectStatus"></div>
       </div>

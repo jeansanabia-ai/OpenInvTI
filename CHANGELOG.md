@@ -22,8 +22,16 @@ Todos esses cinco botões existiam na interface mas não tinham nenhuma ação l
 - Adicionado estilo de modo claro para os botões de ação (`.btn-mini`: Importar/Análise/Copiloto) — antes ficavam escuros com texto ilegível.
 - Contraste verificado automaticamente (WCAG): todos os elementos principais ≥ 4.5:1 (hero-title ~17:1, botões ~7.5:1).
 
-### 🧹 Observação técnica
-- A tela de captura manual avulsa (`screen-capture`, com o botão "Salvar item") é código órfão: não há nenhum caminho na interface que a abra, então ela não é exibida ao usuário. Mantida como está (inofensiva) para evitar risco de remoção.
+### 🔲 Código de barras como método principal + IA atualizada
+- **Código de barras** virou a ação **principal** de captura (disparo manual): botão grande "🔲 Ler código de barras (recomendado)" no topo. A **foto da etiqueta (OCR)** fica como alternativa e a **🤖 IA identifica** como ferramenta **opcional**.
+- **Modelo de visão da IA atualizado** para os mais recentes da Groq: **Llama 4 Maverick** (mais inteligente) com **fallback automático** para **Llama 4 Scout**, usando JSON mode. O modelo anterior (`llama-3.2-11b-vision-preview`) foi descontinuado pela Groq.
+
+### 🏷️ Leitura de etiqueta com prioridade no patrimônio
+- Ao ler a etiqueta (OCR/IA), o **nº de patrimônio** agora é o foco: quando identificado, o campo é destacado e a tela rola até ele; quando NÃO é identificado, o app foca o campo e avisa claramente ("Digite o nº de patrimônio abaixo").
+- **Linha-guia animada (estilo scanner)** na câmera de etiqueta, para ajudar a alinhar o código de barras / a etiqueta.
+
+### 🧹 Limpeza
+- **Removida a tela de captura manual avulsa** (`screen-capture` e funções órfãs `loadItemIntoForm`/`readForm`/`applyExtracted` + handler do botão "Cancelar"): era código morto sem caminho na interface. O cadastro é todo pelo wizard guiado.
 
 ### ✅ Testes
 - Suíte automatizada (jsdom) ampliada: carregamento sem erros, todos os handlers de botão ligados após o init, modais de Copiloto e Análise renderizando, fluxo de nome opcional e trava de tipo. Todos passando.

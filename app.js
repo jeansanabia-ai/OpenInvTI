@@ -11,6 +11,13 @@
 // Veja SETUP_CLOUDFLARE.md para o passo a passo do deploy.
 const PROXY_URL = 'https://openinvti.jean-sanabia.workers.dev'; // v1.0.12: proxy Cloudflare já fixado
 
+// v1.2.2: modelos de VISÃO da Groq (mais recentes). Maverick = mais inteligente;
+// Scout = fallback mais rápido. Usados pelo botão "IA identifica".
+const GROQ_VISION_MODELS = [
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+];
+
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
 const APP_VERSION = '1.2.2';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
@@ -1061,52 +1068,9 @@ function escapeHtml(s) {
   return (s || '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
-function loadItemIntoForm(it) {
-  $('fTipo').value = it ? (it.tipo || 'CPU') : 'CPU';
-  $('fMarca').value = it ? (it.marca || '') : '';
-  $('fModelo').value = it ? (it.modelo || '') : '';
-  $('fPatrimonio').value = it ? (it.patrimonio || '') : '';
-  $('fSerie').value = it ? (it.serie || '-') : '-';
-  $('fUsuario').value = it ? (it.usuario || '') : '';
-  $('fObs').value = it ? (it.obs || '') : '';
-  $('photoLabel').src = ''; $('photoLabel').classList.remove('show');
-  $('photoUser').src = '';  $('photoUser').classList.remove('show');
-  $('statusLabel').textContent = ''; $('statusUser').textContent = '';
-  $('photoLabelBox').classList.remove('has-photo');
-  $('photoUserBox').classList.remove('has-photo');
-  $('progLabel').classList.remove('active'); $('progUser').classList.remove('active');
-}
-
-function readForm() {
-  return {
-    tipo: $('fTipo').value,
-    marca: $('fMarca').value.trim(),
-    modelo: $('fModelo').value.trim(),
-    patrimonio: $('fPatrimonio').value.trim() || 'Nao capturado',
-    serie: $('fSerie').value.trim() || '-',
-    usuario: $('fUsuario').value.trim(),
-    obs: $('fObs').value.trim(),
-  };
-}
-
-function applyExtracted(extracted, source) {
-  // source: 'label' ou 'user'. Só preenche o que estiver vazio.
-  if (source === 'label') {
-    if (extracted.tipo && !$('fTipo').value) $('fTipo').value = extracted.tipo;
-    if (extracted.tipo) $('fTipo').value = extracted.tipo; // Sobrescreve tipo sempre que detectado
-    if (extracted.marca && !$('fMarca').value) $('fMarca').value = extracted.marca;
-    if (extracted.modelo && !$('fModelo').value) $('fModelo').value = extracted.modelo;
-    if (extracted.patrimonio && !$('fPatrimonio').value) $('fPatrimonio').value = extracted.patrimonio;
-    if (extracted.serie && (!$('fSerie').value || $('fSerie').value === '-')) $('fSerie').value = extracted.serie;
-    if (extracted.obs && extracted.obs.length) {
-      const cur = $('fObs').value.trim();
-      const novo = extracted.obs.join(' ');
-      $('fObs').value = cur ? (cur + (cur.endsWith('.') ? ' ' : '. ') + novo) : novo;
-    }
-  } else if (source === 'user') {
-    if (extracted.usuario && !$('fUsuario').value) $('fUsuario').value = extracted.usuario;
-  }
-}
+// v1.2.2: funções loadItemIntoForm/readForm/applyExtracted removidas —
+// pertenciam à tela de captura manual avulsa (screen-capture), que foi removida.
+// O fluxo de cadastro é todo pelo wizard guiado.
 
 // ============================================================
 // WIZARD — Captura guiada por usuário
@@ -2468,23 +2432,32 @@ async function identificarEquipamentoComIA() {
       reader.onerror = rej;
       reader.readAsDataURL(file);
     });
-    // Tenta usar modelo vision via proxy
+    // Mensagem multimodal (texto + imagem) — JSON mode é aplicado por chamarIA
     const messages = [{
       role: 'user',
       content: [
-        { type: 'text', text: 'Você é especialista em equipamentos de TI. Olhe esta foto e identifique: tipo (CPU/Monitor/Notebook/Impressora/Telefone IP/Outro), marca aparente. Retorne APENAS JSON: {"tipo":"...","marca":"...","modelo":"..."}' },
+        { type: 'text', text: 'Você é um especialista em equipamentos de TI corporativos. Analise a foto do equipamento e identifique tipo, marca e modelo visíveis. O campo "tipo" DEVE ser exatamente um destes: CPU, Monitor, Notebook, Impressora, Telefone IP, Outro. Se não tiver certeza da marca ou do modelo, deixe a string vazia (não invente). Responda APENAS com JSON válido, sem markdown, no formato: {"tipo":"...","marca":"...","modelo":"..."}' },
         { type: 'image_url', image_url: { url: dataUrl } }
       ]
     }];
-    const content = await chamarIA(messages, { model: 'llama-3.2-11b-vision-preview', max_tokens: 200, temperature: 0.1 });
-    const m = (content || '').match(/\{[\s\S]*\}/);
-    if (m) {
-      const parsed = JSON.parse(m[0]);
-      return parsed;
+    // v1.2.2: modelos de visão mais recentes da Groq — Llama 4 Maverick (mais inteligente)
+    // com fallback automático para Llama 4 Scout (mais rápido) se o primeiro indisponível.
+    let parsed = null, lastErr = null;
+    for (const model of GROQ_VISION_MODELS) {
+      try {
+        const content = await chamarIA(messages, { model: model, max_tokens: 300, temperature: 0.1 });
+        const txt = content || '';
+        try { parsed = JSON.parse(txt); }
+        catch (e1) { const m = txt.match(/\{[\s\S]*\}/); if (m) parsed = JSON.parse(m[0]); }
+        if (parsed) break;
+      } catch (e2) { lastErr = e2; console.warn('IA Vision (' + model + ') falhou:', e2.message); }
     }
+    if (parsed) return parsed;
+    if (lastErr) throw lastErr;
+    return null;
   } catch (e) {
     console.warn('IA Vision falhou:', e.message);
-    toast('⚠️ IA Vision indisponível. Tire foto da etiqueta normal.', 4500);
+    toast('⚠️ IA Vision indisponível agora. Use o código de barras ou a foto da etiqueta.', 4500);
   }
   return null;
 }
@@ -3089,7 +3062,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   $('btnAdd').onclick = () => { startWizard(null); };
-  $('btnCancel') && ($('btnCancel').onclick = () => { STATE.editingId = null; showScreen('screen-list'); });
 
   // v1.2.2: botões da tela inicial (estavam sem ação ligada)
   if ($('btnImport')) $('btnImport').onclick = async () => {
@@ -3279,10 +3251,22 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (!finalDados.tipo) {
           try { finalDados.tipo = detectarTipoPorOCR(text) || ''; } catch (e) {}
         }
+        // v1.2.2: helper de destaque visual nos campos
+        const flashCampo = (el, cor) => {
+          if (!el) return;
+          el.style.transition = 'background 0.3s';
+          el.style.background = cor || 'rgba(52, 211, 153, 0.18)';
+          setTimeout(() => { el.style.background = ''; }, 1600);
+        };
         // Aplica nos campos só se eles estiverem vazios (preserva input manual)
         if (finalDados.marca && !$('wMarca').value) $('wMarca').value = finalDados.marca;
         if (finalDados.modelo && !$('wModelo').value) $('wModelo').value = finalDados.modelo;
-        if (finalDados.patrimonio && !$('wPatrimonio').value) $('wPatrimonio').value = finalDados.patrimonio;
+        // PRIORIDADE: nº de patrimônio (campo-chave do inventário) — destaca e rola até ele
+        if (finalDados.patrimonio && !$('wPatrimonio').value) {
+          $('wPatrimonio').value = finalDados.patrimonio;
+          flashCampo($('wPatrimonio'));
+          try { $('wPatrimonio').scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+        }
         if (finalDados.serie && (!$('wSerie').value || $('wSerie').value === '-')) $('wSerie').value = finalDados.serie;
         if (finalDados.observacoes) {
           const cur = $('wObs').value.trim();
@@ -3303,21 +3287,26 @@ window.addEventListener('DOMContentLoaded', async () => {
             setTimeout(() => { $('wTipo').style.background = ''; }, 1500);
           }
         }
+        // v1.2.2: status PRIORIZA o nº de patrimônio (campo-chave do inventário)
+        const patVal = ($('wPatrimonio').value || '').trim();
+        const temPatReal = patVal && patVal !== 'Sem etiqueta' && !/^SN-/i.test(patVal);
         const achados = [];
         if (finalDados.tipo) achados.push('tipo (' + finalDados.tipo + ')');
-        if (finalDados.patrimonio) achados.push('patrimônio');
         if (finalDados.marca) achados.push('marca');
         if (finalDados.modelo) achados.push('modelo');
         if (finalDados.serie) achados.push('série');
-        const prefixo = iaUsada ? '🤖 IA Groq extraiu: ' : 'OK OCR detectou: ';
-        if (achados.length) {
-          status.textContent = prefixo + achados.join(', ') + '. Confira/edite abaixo.' + blurWarn;
+        const fonte = iaUsada ? '🤖 IA Groq' : 'OCR';
+        if (temPatReal) {
+          status.textContent = '✅ ' + fonte + ' — Patrimônio: ' + patVal + (achados.length ? ' · também: ' + achados.join(', ') : '') + '. Confira/edite abaixo.' + blurWarn;
         } else if (text.trim()) {
-          // v1.1.1: status mais informativo com prévia do texto
-      const previewT = (text || '').replace(/\s+/g, ' ').trim().substring(0, 60);
-      status.textContent = 'OCR leu: "' + previewT + '..." mas não bateu nenhum padrão. Preencha abaixo.';
+          const previewT = (text || '').replace(/\s+/g, ' ').trim().substring(0, 50);
+          status.textContent = '⚠️ Não identifiquei o nº de patrimônio' + (achados.length ? ' (achei ' + achados.join(', ') + ')' : ' — OCR leu: "' + previewT + '..."') + '. Digite o nº de patrimônio abaixo.' + blurWarn;
+          status.classList.add('error');
+          try { $('wPatrimonio').focus(); flashCampo($('wPatrimonio'), 'rgba(251, 191, 36, 0.20)'); } catch (e) {}
         } else {
-          status.textContent = '⚠️ Foto sem texto legível. Aproxime mais, melhore iluminação ou preencha manualmente.';
+          status.textContent = '⚠️ Foto sem texto legível. Aproxime da etiqueta, melhore a luz ou digite o nº de patrimônio.';
+          status.classList.add('error');
+          try { $('wPatrimonio').focus(); } catch (e) {}
         }
       }
     } catch (err) {
