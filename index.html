@@ -12,13 +12,49 @@
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="style.css" />
   <title>OpenInvTI - Inventário de TI</title>
+  <!-- v1.2.7: bootstrap GARANTIDO dos botões de setup — funciona mesmo se app.js falhar -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Botão verde: Farmanguinhos direto
+      var quickFar = document.getElementById('cfgQuickFar');
+      if (quickFar) {
+        quickFar.addEventListener('click', function () {
+          try {
+            var cfg = {
+              empresa: { nome: 'Farmanguinhos', titulo: 'INVENTARIO DE EQUIPAMENTOS DE TI' },
+              patrimonio: {
+                regex_padroes: ['\\b41\\d{6}\\b', 'F[-_\\s]?FAR[-_\\s]?\\d{5}', '\\bFAR[-_\\s]?\\d{5}\\b', '\\b\\d{6}\\b'],
+                exemplo: '41810330 ou F-FAR-12345',
+                normalizar: 'far'
+              },
+              marcas: ['HP','Dell','Lenovo','Acer','Asus','Apple','Samsung','LG','Positivo','Itautec','Yealink','Cisco','Avaya','Polycom','Philips','AOC','BenQ','Brother','Epson','Canon','Xerox'],
+              ai: { groq_key: '', model: 'llama-3.3-70b-versatile' },
+              setup_done: true
+            };
+            localStorage.setItem('openinvti-config', JSON.stringify(cfg));
+            location.reload();
+          } catch (e) { alert('Erro: ' + e.message); }
+        });
+      }
+      // Botão vermelho: limpar tudo
+      var resetar = document.getElementById('cfgResetar');
+      if (resetar) {
+        resetar.addEventListener('click', function () {
+          if (confirm('Apagar TUDO e recomeçar?')) {
+            try { localStorage.clear(); } catch (e) {}
+            location.reload();
+          }
+        });
+      }
+    });
+  </script>
 </head>
 <body>
   <div class="app">
     <header class="topbar">
       <div>
         <h1 id="topTitle">OpenInvTI</h1>
-        <div class="sub" id="topSub">Inventário de TI Inteligente · v1.2.7</div>
+        <div class="sub" id="topSub">Inventário de TI Inteligente · v1.2.8</div>
       </div>
       <div class="topbar-actions">
         <div class="ia-badge" id="iaBadge" title="IA ativa — extração automática habilitada" style="display:none">🤖 IA</div>
@@ -64,10 +100,10 @@
         <div class="hint">Tire de 3 a 5 fotos de etiquetas diferentes da sua empresa. O app analisa todas e sugere o melhor regex (vários padrões aceitos).</div>
       </div>
       <div id="cfgPadroesSugestoes" style="display:none"></div>
-      <button class="btn btn-primary" id="cfgSalvar" onclick="window.__forcaSalvarFarmanguinhos && window.__forcaSalvarFarmanguinhos()">✓ Salvar e começar</button>
-      <!-- v1.2.7: botão GARANTIDO Farmanguinhos com onclick inline (funciona mesmo se JS principal falhar) -->
-      <button class="btn btn-primary" id="cfgQuickFar" style="margin-top:10px; background:linear-gradient(135deg, #06B6D4 0%, #10B981 100%); border:none" onclick="(function(){try{localStorage.setItem('openinvti-config',JSON.stringify({empresa:{nome:'Farmanguinhos',titulo:'INVENTARIO DE EQUIPAMENTOS DE TI'},patrimonio:{regex_padroes:['\\\\b41\\\\d{6}\\\\b','F[-_\\\\s]?FAR[-_\\\\s]?\\\\d{5}','\\\\bFAR[-_\\\\s]?\\\\d{5}\\\\b','\\\\b\\\\d{6}\\\\b'],exemplo:'41810330 ou F-FAR-12345',normalizar:'far'},marcas:['HP','Dell','Lenovo','Acer','Asus','Apple','Samsung','LG','Positivo','Itautec','Yealink','Cisco','Avaya','Polycom','Philips','AOC','BenQ','Brother','Epson','Canon','Xerox'],ai:{groq_key:'',model:'llama-3.3-70b-versatile'},setup_done:true}));location.reload();}catch(e){alert('Erro: '+e.message);}})()">🏥 USAR DIRETO COM FARMANGUINHOS (recomendado)</button>
-      <button class="btn btn-danger" id="cfgResetar" style="margin-top:14px" onclick="if(confirm('Apagar TUDO e recomeçar?')){try{localStorage.clear();}catch(e){}location.reload();}">🗑️ Limpar tudo e recomeçar</button>
+      <button class="btn btn-primary" id="cfgSalvar">✓ Salvar e começar</button>
+      <!-- v1.2.7: botão GARANTIDO Farmanguinhos — função definida no inline-bootstrap abaixo -->
+      <button class="btn btn-primary" id="cfgQuickFar" style="margin-top:10px; background:linear-gradient(135deg, #06B6D4 0%, #10B981 100%); border:none">🏥 USAR DIRETO COM FARMANGUINHOS (recomendado)</button>
+      <button class="btn btn-danger" id="cfgResetar" style="margin-top:14px">🗑️ Limpar tudo e recomeçar</button>
       <div class="hint" style="text-align:center;margin-top:6px">Apaga configurações + inventários salvos. Útil para testar como usuário novo.</div>
     </section>
 
