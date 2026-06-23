@@ -36,3 +36,7 @@ npm-debug.log*
 # Cache
 .cache/
 .parcel-cache/
+
+# Releases — pastas extraídas e zips não vão pro repo
+OpenInvTI-v*.zip
+OpenInvTI-v*/
