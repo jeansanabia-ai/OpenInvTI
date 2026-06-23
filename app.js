@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.6';
+const APP_VERSION = '1.2.7';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
