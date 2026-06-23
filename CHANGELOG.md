@@ -2,6 +2,19 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.2.4] - 2026-06-23 (HOTFIX — subtítulo mostrava versão velha + preset Far não reaplicava)
+
+### 🐛 Subtítulo do header mostrava `v1.2.2` mesmo em v1.2.3
+- Causa: `index.html` linha 21 tinha o subtítulo **hardcoded** como `Inventário de TI Inteligente · v1.2.2`. O JS sobrescreve esse texto via `updateTopbar()` — mas essa função só roda na tela home (`screen-start`), nunca na tela de boas-vindas (`screen-setup`). Quando o usuário limpava dados e caía na tela de setup, ficava com a versão velha visível.
+- Fix: HTML atualizado para `v1.2.4` + novo bloco de boot no `DOMContentLoaded` que escreve `APP_TAGLINE + ' · v' + APP_VERSION` no `topSub` **antes** de qualquer outra coisa, garantindo que toda tela inicial mostre a versão real.
+
+### 🔁 Preset Far (`?preset=far`) agora pode ser reaplicado
+- Antes, o preset só era aplicado quando `APP_CONFIG.setup_done === false`. Resultado: depois de limpar dados (que zera `setup_done`), o preset deveria rodar — mas em alguns cenários de timing (race condition no boot, localStorage tardio em aba anônima) o app caía na tela de setup com campos vazios mesmo com `?preset=far` na URL.
+- Fix: removida a condição `!APP_CONFIG.setup_done`. Agora o preset reaplica sempre que o link com `?preset=far` é aberto — o usuário pode reusar o QR Code a qualquer momento.
+
+### Mudado
+- Cache do SW: `openinvti-v1.2.4-prod` (força puxar o `index.html` corrigido e o `app.js` novo).
+
 ## [1.2.3] - 2026-06-23 (PATCH — câmera mais clara + assistente IA na foto)
 
 ### 📷 Linha-guia vermelha só aparece onde faz sentido

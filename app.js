@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.3';
+const APP_VERSION = '1.2.4';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -2880,11 +2880,19 @@ function detectarTipoPorOCR(texto) {
 // Listeners
 // ============================================================
 window.addEventListener('DOMContentLoaded', async () => {
+  // v1.2.4: BOOT — atualiza subtítulo com APP_VERSION imediato, ANTES de qualquer tela
+  // (antes só rodava em updateTopbar, que só dispara na tela home — então setup-empresa ficava com versão velha hardcoded)
+  try {
+    const sub = document.getElementById('topSub');
+    if (sub) sub.textContent = APP_TAGLINE + ' · v' + APP_VERSION;
+  } catch (e) {}
+
   // v1.0.9: Aplica preset de empresa via ?preset=XXX na URL antes de qualquer coisa
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const preset = urlParams.get('preset');
-    if (preset && EMPRESA_PRESETS[preset.toLowerCase()] && !APP_CONFIG.setup_done) {
+    // v1.2.4: re-aplica preset mesmo se setup_done já = true (permite reusar link quando user limpa dados)
+    if (preset && EMPRESA_PRESETS[preset.toLowerCase()]) {
       aplicarPresetEmpresa(preset);
       // Limpa o parâmetro da URL pra não reaplicar em refresh
       try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
