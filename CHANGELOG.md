@@ -2,6 +2,28 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.2.6] - 2026-06-23 (HOTFIX DECISIVO — Farmanguinhos é o DEFAULT, sem mais race)
+
+### 🎯 Decisão de produto
+Em vez de depender de `?preset=far` na URL (race condition no boot do PWA, expira ao limpar dados), o **default do app agora É Farmanguinhos**. Quem abre o link **direto na raiz** (`https://jeansanabia-ai.github.io/OpenInvTI/`) cai imediatamente na tela home configurada com:
+- Empresa: **Farmanguinhos**
+- Título: INVENTARIO DE EQUIPAMENTOS DE TI
+- Regex: `\b41\d{6}\b`, `F[-_\s]?FAR[-_\s]?\d{5}`, `\bFAR[-_\s]?\d{5}\b`, `\b\d{6}\b`
+- Marcas pré-carregadas (HP, Dell, Lenovo, Positivo, Itautec, Yealink, Cisco, Avaya etc.)
+- Normalização Far ativa (FAR-12345 → F-FAR-12345)
+- `setup_done = true` (pula tela de Bem-vindo)
+
+### 🔄 Migração automática
+- Se já existe localStorage com `empresa.nome === 'Sua Empresa'` (default antigo) ou nome vazio, **descarta e reaplica o default novo** (sem precisar limpar dados manualmente).
+
+### 🔧 Por que isso resolve "nenhum botão funciona"
+- Antes: usuário caía na tela `screen-setup` sem campos preenchidos. Os botões "Salvar" e "Iniciar inventário" são de **outras telas** — então parecia que "nada funcionava" porque o app estava em modo setup esperando input.
+- Agora: pula direto pra `screen-start` com tudo pronto, os botões da home (📥 Importar, 📊 Análise, 🤖 Copiloto, ▶ Iniciar inventário) ficam visíveis e ativos no primeiro carregamento.
+
+### Mudado
+- Cache do SW: `openinvti-v1.2.6-prod`.
+- `?preset=far` continua funcionando (compatibilidade pra outros links), mas não é mais necessário.
+
 ## [1.2.5] - 2026-06-23 (HOTFIX — preset Far agora preenche tudo, sem race condition)
 
 ### 🐛 Preset Far não chegava na tela de setup

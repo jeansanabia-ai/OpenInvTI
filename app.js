@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.5';
+const APP_VERSION = '1.2.6';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -63,18 +63,27 @@ function normalizarPatrimonio(match) {
 // ============================================================
 // CONFIGURAÇÃO (carregada de localStorage, fallback config.json)
 // ============================================================
+// v1.2.6: DEFAULT_CONFIG agora vem PRÉ-CONFIGURADO para Farmanguinhos.
+// Quem abrir o app cai direto na tela home, sem tela de setup nem necessidade de ?preset=far.
+// O usuário pode alterar tudo em ⚙️ Configurações se quiser usar em outra empresa.
 const DEFAULT_CONFIG = {
-  empresa: { nome: 'Sua Empresa', titulo: 'INVENTARIO DE EQUIPAMENTOS DE TI' },
+  empresa: { nome: 'Farmanguinhos', titulo: 'INVENTARIO DE EQUIPAMENTOS DE TI' },
   patrimonio: {
-    regex_padroes: ['[A-Z]{2,5}-?\\d{3,8}', '\\d{6,10}'],
-    exemplo: 'Ex.: ABC-12345 ou 12345678',
+    regex_padroes: [
+      '\\b41\\d{6}\\b',
+      'F[-_\\s]?FAR[-_\\s]?\\d{5}',
+      '\\bFAR[-_\\s]?\\d{5}\\b',
+      '\\b\\d{6}\\b'
+    ],
+    exemplo: '41810330 ou F-FAR-12345',
+    normalizar: 'far',
   },
   marcas: ['HP', 'Dell', 'Lenovo', 'Acer', 'Asus', 'Apple', 'Samsung', 'LG',
            'Positivo', 'Itautec', 'Yealink', 'Cisco', 'Avaya', 'Polycom',
            'Philips', 'AOC', 'BenQ', 'Brother', 'Epson', 'Canon', 'Xerox'],
   ocr_regex_extras: [],
-  ai: { groq_key: '', model: 'llama-3.3-70b-versatile' }, // v1.0.8: detecção de regex com IA
-  setup_done: false,
+  ai: { groq_key: '', model: 'llama-3.3-70b-versatile' },
+  setup_done: true, // v1.2.6: pula tela de setup direto na home
 };
 
 // v1.0.9: helper — verdadeiro se IA está disponível (via proxy ou chave manual)
@@ -99,7 +108,15 @@ function aplicarPresetEmpresa(nomePreset) {
 function loadConfig() {
   try {
     const saved = localStorage.getItem('openinvti-config');
-    if (saved) return Object.assign({}, DEFAULT_CONFIG, JSON.parse(saved));
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // v1.2.6: migra configs antigas com "Sua Empresa" pro default Far novo
+      // (resolve race-condition de quem teve config criada antes do default novo)
+      if (parsed && parsed.empresa && (parsed.empresa.nome === 'Sua Empresa' || !parsed.empresa.nome)) {
+        return Object.assign({}, DEFAULT_CONFIG);
+      }
+      return Object.assign({}, DEFAULT_CONFIG, parsed);
+    }
   } catch (e) {}
   return Object.assign({}, DEFAULT_CONFIG);
 }
