@@ -686,6 +686,24 @@ html.light-mode .share-modal-steps { color: #475569; }
 /* No modo barcode o frame todo vira vermelho pra reforçar visualmente */
 #cameraModal.barcode-mode .cam-guide-corner { border-color: #FF3B30; }
 #cameraModal.barcode-mode .cam-guide-label { background: rgba(220, 38, 38, 0.92); }
+
+/* v1.2.9: Modo IA — tema roxo distinto pra usuário SABER que está na câmera de IA Vision */
+#cameraModal.ia-mode .cam-guide-corner { border-color: #A855F7; }
+#cameraModal.ia-mode .cam-guide-label {
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 100%);
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.55);
+  padding: 8px 16px;
+  font-size: 13px;
+}
+#cameraModal.ia-mode .cam-btn-back {
+  background: rgba(124, 58, 237, 0.85);
+  border-color: rgba(168, 85, 247, 0.6);
+}
+#cameraModal.ia-mode .cam-btn-capture {
+  border-color: #A855F7;
+  box-shadow: 0 0 22px rgba(168, 85, 247, 0.5);
+}
+#cameraModal.ia-mode .cam-btn-capture:active .cam-btn-capture-inner { background: #A855F7; }
 .cam-detect-status {
   position: absolute; bottom: 24%;
   left: 50%; transform: translateX(-50%);

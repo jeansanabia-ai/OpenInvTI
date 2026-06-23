@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.8';
+const APP_VERSION = '1.2.9';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -1448,7 +1448,9 @@ function camSupportsGetUserMedia() {
   return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 }
 
-async function openCustomCamera(stepKey) {
+async function openCustomCamera(stepKey, opts) {
+  opts = opts || {};
+  const mode = opts.mode || 'photo'; // 'photo' | 'barcode' | 'ia'
   if (!camSupportsGetUserMedia()) {
     return null;  // Fallback pro input file
   }
@@ -1457,14 +1459,24 @@ async function openCustomCamera(stepKey) {
   if (!CAM.modal || !CAM.videoEl) return null;
 
   CAM.active = true;
+  CAM.mode = mode;
   CAM.modal.style.display = 'flex';
+  // v1.2.9: aplica classe do modo no modal pra estilizar overlays (linha vermelha barcode, tema IA)
+  CAM.modal.classList.remove('barcode-mode', 'ia-mode', 'photo-mode');
+  CAM.modal.classList.add(mode + '-mode');
 
-  // Ajusta texto guia conforme passo
+  // Ajusta texto guia conforme passo + modo
   const guideEl = document.querySelector('.cam-guide-label');
   if (guideEl) {
-    guideEl.textContent = (stepKey === 'usuario')
-      ? 'Centralize a tela do usuário aqui'
-      : 'Centralize a etiqueta aqui';
+    if (mode === 'barcode') {
+      guideEl.textContent = 'Alinhe o código de barras na linha vermelha';
+    } else if (mode === 'ia') {
+      guideEl.textContent = '🤖 Modo IA — fotografe o equipamento (não a etiqueta)';
+    } else {
+      guideEl.textContent = (stepKey === 'usuario')
+        ? 'Centralize a tela do usuário aqui'
+        : 'Centralize a etiqueta aqui';
+    }
   }
 
   try {
@@ -2391,14 +2403,21 @@ async function lerCodigoBarras() {
     toast('⚠️ Seu navegador não suporta leitura nativa de código de barras. Use OCR.', 4500);
     return null;
   }
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = 'image/*';
-  fileInput.capture = 'environment';
-  const file = await new Promise((resolve) => {
-    fileInput.onchange = (e) => resolve(e.target.files && e.target.files[0]);
-    fileInput.click();
-  });
+  // v1.2.9: usa câmera customizada em modo BARCODE (linha vermelha + botão Retomar inventário)
+  let file = null;
+  try {
+    file = await openCustomCamera('barcode', { mode: 'barcode' });
+  } catch (e) { file = null; }
+  if (!file) {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.capture = 'environment';
+    file = await new Promise((resolve) => {
+      fileInput.onchange = (e) => resolve(e.target.files && e.target.files[0]);
+      fileInput.click();
+    });
+  }
   if (!file) return null;
   try {
     const img = await new Promise((resolve, reject) => {
@@ -2452,6 +2471,13 @@ async function identificarEquipamentoComIAFromFile(file, silent) {
 
 async function identificarEquipamentoComIA() {
   if (!iaDisponivel()) { toast('IA não disponível agora.', 3000); return null; }
+  // v1.2.9: usa câmera customizada em modo IA (tema roxo + label "🤖 Modo IA Vision" + botão Retomar)
+  let fileIA = null;
+  try {
+    fileIA = await openCustomCamera('ia', { mode: 'ia' });
+  } catch (e) { fileIA = null; }
+  if (fileIA) return await identificarEquipamentoComIAFromFile(fileIA, false);
+  // Fallback pro input file nativo se câmera customizada falhar
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = 'image/*';
@@ -3855,7 +3881,6 @@ function extrairCandidatosPadrao(text) {
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
   if (e.key === 'Enter' && document.querySelector('#screen-wizard.active')) {
-    e.preventDefault();
     const btn = document.getElementById('wizNext');
     if (btn) btn.click();
   }
@@ -3864,14 +3889,6 @@ window.addEventListener('keydown', (e) => {
     if (modal) modal.remove();
   }
   if (e.ctrlKey && e.key === 's') {
-    e.preventDefault();
-    if (typeof saveState === 'function') saveState();
-    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('💾 Salvo (manual)', 'ok');
-  }
-});
-
-window.addEventListener('beforeunload', (e) => {
-  if (STATE.items && STATE.items.length > 0) {
     e.preventDefault();
     e.returnValue = '';
   }
