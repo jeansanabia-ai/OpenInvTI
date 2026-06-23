@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.4';
+const APP_VERSION = '1.2.5';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -2888,13 +2888,31 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {}
 
   // v1.0.9: Aplica preset de empresa via ?preset=XXX na URL antes de qualquer coisa
+  // v1.2.5: aplicação ROBUSTA — força tela home na mesma síncronização, sem depender de saveConfig async
+  let _presetAplicado = false;
   try {
     const urlParams = new URLSearchParams(window.location.search);
     const preset = urlParams.get('preset');
-    // v1.2.4: re-aplica preset mesmo se setup_done já = true (permite reusar link quando user limpa dados)
     if (preset && EMPRESA_PRESETS[preset.toLowerCase()]) {
       aplicarPresetEmpresa(preset);
-      // Limpa o parâmetro da URL pra não reaplicar em refresh
+      _presetAplicado = true;
+      // Preenche os campos da tela de setup ao mesmo tempo (defesa em profundidade
+      // se algum caminho cair na tela mesmo após preset).
+      try {
+        const p = EMPRESA_PRESETS[preset.toLowerCase()];
+        if (document.getElementById('cfgEmpresa') && p.empresa && p.empresa.nome) {
+          document.getElementById('cfgEmpresa').value = p.empresa.nome;
+        }
+        if (document.getElementById('cfgTitulo') && p.empresa && p.empresa.titulo) {
+          document.getElementById('cfgTitulo').value = p.empresa.titulo;
+        }
+        if (document.getElementById('cfgPatRegex') && p.patrimonio && p.patrimonio.regex_padroes) {
+          document.getElementById('cfgPatRegex').value = p.patrimonio.regex_padroes.join(' | ');
+        }
+        if (document.getElementById('cfgMarcas') && p.marcas) {
+          document.getElementById('cfgMarcas').value = p.marcas.join(', ');
+        }
+      } catch (e) {}
       try { history.replaceState(null, '', window.location.pathname); } catch (e) {}
     }
   } catch (e) { console.warn('Erro aplicando preset:', e); }
@@ -2908,9 +2926,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {}
 
   // FAILSAFE: garante que pelo menos uma tela está ativa, mesmo se algo travar depois
+  // v1.2.5: se preset acabou de ser aplicado, força tela inicial mesmo se setup_done ainda não persistiu
   try {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    const initial = APP_CONFIG.setup_done ? 'screen-start' : 'screen-setup';
+    const initial = (_presetAplicado || APP_CONFIG.setup_done) ? 'screen-start' : 'screen-setup';
     const el = document.getElementById(initial);
     if (el) el.classList.add('active');
   } catch (e) { console.error('Failsafe screen falhou:', e); }

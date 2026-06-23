@@ -2,6 +2,19 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.2.5] - 2026-06-23 (HOTFIX — preset Far agora preenche tudo, sem race condition)
+
+### 🐛 Preset Far não chegava na tela de setup
+- Mesmo com `?preset=far` na URL, o usuário caía na tela de Bem-vindo com **Nome da empresa vazio**, **Padrão regex vazio** e **Marcas vazias** (só o título vinha por causa do default).
+- Causa: race condition no boot — `aplicarPresetEmpresa()` chamava `saveConfig()` que escrevia no localStorage de forma assíncrona, mas o failsafe lia `APP_CONFIG.setup_done` antes desse save propagar; o failsafe então mostrava `screen-setup` com os campos vazios porque os listeners de tela de setup ainda não tinham puxado do `APP_CONFIG` atualizado.
+
+### ✅ Hardening (defesa em profundidade)
+- Sinalizador `_presetAplicado` em escopo do listener `DOMContentLoaded`: quando o preset é aplicado, o failsafe **força `screen-start`** mesmo se `setup_done` ainda não persistiu.
+- Quando o preset é aplicado, **preenche imediatamente os campos visuais** da tela de setup (`#cfgEmpresa`, `#cfgTitulo`, `#cfgRegex`, `#cfgMarcas`) — se por algum motivo a tela de setup for mostrada mesmo assim, os campos já vêm corretos.
+
+### Mudado
+- Cache do SW: `openinvti-v1.2.5-prod`.
+
 ## [1.2.4] - 2026-06-23 (HOTFIX — subtítulo mostrava versão velha + preset Far não reaplicava)
 
 ### 🐛 Subtítulo do header mostrava `v1.2.2` mesmo em v1.2.3
