@@ -1,0 +1,31 @@
+{
+  "produto": {
+    "nome": "OpenInvTI",
+    "versao": "1.0.0",
+    "tagline": "Inventário de TI Corporativo · Open Source"
+  },
+  "empresa_padrao": {
+    "nome": "Sua Empresa",
+    "titulo_planilha": "INVENTARIO DE EQUIPAMENTOS DE TI"
+  },
+  "patrimonio": {
+    "regex_padroes": [
+      "[A-Z]{2,5}-?\\d{3,8}",
+      "\\d{6,10}"
+    ],
+    "exemplo": "Ex.: ABC-12345 ou 12345678",
+    "descricao": "Regex de padrões aceitos. Empresa pode customizar para seu formato."
+  },
+  "marcas_padrao": [
+    "HP", "Dell", "Lenovo", "Acer", "Asus", "Apple",
+    "Samsung", "LG", "Positivo", "Itautec",
+    "Yealink", "Cisco", "Avaya", "Polycom",
+    "Philips", "AOC", "BenQ",
+    "Brother", "Epson", "Canon", "Xerox"
+  ],
+  "tipos_padrao": [
+    "CPU", "Notebook", "Monitor", "Telefone IP",
+    "Impressora", "Scanner", "Servidor", "Switch",
+    "Roteador", "Tablet", "Outro"
+  ]
+}
