@@ -37,6 +37,9 @@ npm-debug.log*
 .cache/
 .parcel-cache/
 
-# Releases — pastas extraídas e zips não vão pro repo
-OpenInvTI-v*.zip
+# pasta de testes E2E
+test/node_modules/
+test/package-lock.json
+nvTI-v*.zip
 OpenInvTI-v*/
+QR-OpenInvTI-*.png
