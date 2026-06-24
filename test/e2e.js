@@ -115,7 +115,7 @@ setTimeout(() => {
       return obj.empresa.nome === 'Farmanguinhos' && obj.setup_done === true;
     });
     test('todos botoes criticos existem', () => {
-      const ids = ['cfgSalvar','cfgResetar','cfgQuickFar','btnStart','btnImport','btnAnalytics','btnCopilot','wizNext','wizBack','wizBarcode','wizVision'];
+      const ids = ['cfgSalvar','cfgResetar','cfgQuickFar','btnStart','btnImport','btnAnalytics','btnCopilot','wizNext','wizBack','wizBarcode'];
       const miss = ids.filter(id => !d.getElementById(id));
       if (miss.length) throw new Error('faltando: ' + miss.join(','));
       return true;

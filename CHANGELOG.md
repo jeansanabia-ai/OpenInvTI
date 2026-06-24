@@ -2,6 +2,71 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.4.0] - 2026-06-24 (MINOR — 4 modos de inventário + vocabulário corporativo + WhatsApp executivo)
+
+### 📋 4 modos de inventário (modal após "▶ Iniciar inventário")
+Ao tocar **▶ Iniciar inventário**, o app agora abre um modal pra o inventariante escolher o **modo de cadastro** mais adequado à situação. Cada modo aciona um fluxo otimizado:
+
+- **🖥️ Posto de Trabalho** *(recomendado, default)* — Inventarie todos os ativos vinculados a uma estação de trabalho por usuário (Ex.: CPU, Monitor, Telefone IP). Fluxo original preservado.
+- **📦 Cadastro em Lote** — Registre vários ativos do mesmo tipo de forma contínua. Pergunta qual tipo (CPU/Monitor/Telefone IP/Notebook/Impressora) e pula direto pro step desse tipo em loop. Usuário atribuído opcionalmente no fim.
+- **🎯 Cadastro Individual** — Cadastre ativos diferentes um a um. Wizard com tipo editável a cada item, sem fluxo fixo.
+- **⚡ Coleta Rápida** — Capture apenas o patrimônio para validação de presença física. Step único focado no patrimônio (compatível com a auto-leitura de código de barras).
+
+O modal tem o card "Posto de Trabalho" destacado como recomendado, e os outros 3 abaixo com descrições. Funciona em modo escuro e claro.
+
+### 🏷️ Vocabulário corporativo "Gestão de Ativos"
+Refinamento de toda a interface para o vocabulário mais profissional pedido pelo time:
+
+- Tagline: `Inventário de TI Inteligente` → `Gestão de Ativos de TI`
+- Dashboard: `Itens registrados` → `Ativos registrados`
+- Dashboard: `Sessões` → `Postos de trabalho`
+- Wizard: `Equipamento principal` → `Ativo principal`
+- Wizard: `Dados do equipamento` → `Dados do ativo`
+- Lista: `Estações registradas` → `Postos de trabalho registrados`
+
+### 💬 Mensagem WhatsApp executiva
+A função `montarRelatorioTexto` foi totalmente reescrita pra gerar um relatório com aparência executiva, usando separadores `━━━━━━` pra blocos visuais e métricas de qualidade:
+
+```
+📋 *INVENTÁRIO DE TI*
+━━━━━━━━━━━━━━━━━━━━
+🏢 Empresa · 📍 Setor · 📅 Data · 👤 Analista
+━━━━━━━━━━━━━━━━━━━━
+📦 Resumo executivo
+✅ N ativos · 🖥️ N postos · 👥 N usuários · 🏷️ N% com patrimônio
+━━━━━━━━━━━━━━━━━━━━
+💻 Ativos por tipo
+🖥️ CPUs ............... N
+🖼️ Monitores .......... N
+📞 Telefones IP ....... N
+💻 Notebooks .......... N
+🖨️ Impressoras ........ N
+━━━━━━━━━━━━━━━━━━━━
+📊 Planilha completa em anexo (.xlsx)
+⚙️ OpenInvTI v1.4.0 · Gestão de Ativos de TI
+```
+
+Inclui **taxa de etiquetagem** automática (% de ativos com patrimônio cadastrado) — métrica útil pra avaliar qualidade do levantamento.
+
+### ❌ Botão "🤖 IA identifica" removido
+O botão "IA identifica (opcional)" foi removido do wizard, conforme feedback de uso real (gerava mais confusão do que valor agregado quando comparado ao OCR da foto da etiqueta). O **assistente IA continua rodando automaticamente** dentro do fluxo "📷 Tirar foto da etiqueta" — onde já é mais útil, analisando foto + texto em paralelo e preenchendo os campos.
+
+A função `mostrarModalSugestoesIA` ficou disponível internamente pra uso em futuras integrações (p.ex. assistente conversacional na v1.5.0).
+
+### 🎨 Visual moderno dos 2 botões de captura
+Os dois botões principais do wizard ganharam visual mais sofisticado:
+
+- **🔲 Ler código de barras** — gradient cyan→azul-cobalto com glassmorphism, padding generoso, borda sutil de luz, sombra colorida em camadas, animação de "shine" diagonal no hover e micro-interação de press (scale 0.97).
+- **📷 Tirar foto da etiqueta** — gradient azul-cobalto→mint mais elegante, padding alinhado ao botão principal, mesma sombra em camadas, glassmorphism e shine sutil.
+
+Ambos com transições `cubic-bezier` pra movimento natural e profissional.
+
+### Mudado
+- Cache do SW: `openinvti-v1.4.0-prod`.
+- Subtítulo: `Gestão de Ativos de TI · v1.4.0`.
+- `WIZARD_STEPS` agora é `let` em vez de `const`, pra permitir reatribuição conforme o modo escolhido. A cópia imutável `WIZARD_STEPS_POSTO` preserva o fluxo padrão.
+- `STATE` ganha campos `modoInventario` e `tipoLote` (persistidos no IndexedDB junto com o resto do estado).
+
 ## [1.3.0] - 2026-06-24 (MINOR — UX em massa + auto-barcode + IA TOP 3)
 
 ### 🔲 Auto-leitura de código de barras estilo leitor de supermercado

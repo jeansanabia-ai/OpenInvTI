@@ -19,8 +19,8 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.3.0';
-const APP_TAGLINE = 'Inventário de TI Inteligente';
+const APP_VERSION = '1.4.0';
+const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
 // PRESETS DE EMPRESA — v1.0.9 — aplicados via ?preset=NOME na URL
@@ -142,6 +142,8 @@ const STATE = {
   wizardStep: 0,        // 0=CPU, 1=Monitor 1, 2=Monitor 2, 3=Telefone, 4=Ramal, 5=Usuário
   wizardSessionId: null,
   wizardItems: [],      // itens temporários da sessão atual
+  modoInventario: 'posto', // v1.4.0: 'posto' | 'lote' | 'individual' | 'rapida'
+  tipoLote: null,          // v1.4.0: tipo selecionado quando modo='lote'
   wizardRamal: '',
   wizardUsuario: '',
   // Historico de inventarios finalizados (alimenta dashboard cumulativo)
@@ -149,14 +151,86 @@ const STATE = {
 };
 
 // Definição dos passos do wizard
-const WIZARD_STEPS = [
-  { key: 'cpu', titulo: 'Equipamento principal', sub: 'Tire foto da etiqueta com nº de patrimônio. Se não tem etiqueta, fotografe a do fabricante (marca/modelo/série) — o app marca pra etiquetar depois.', cam: 'Tirar foto da etiqueta', tipoDefault: 'CPU', skippable: true, skipLabel: 'Sem CPU' },
+// v1.4.0: WIZARD_STEPS muda dinamicamente conforme o modo de inventário escolhido
+let WIZARD_STEPS = [
+  { key: 'cpu', titulo: 'Ativo principal', sub: 'Tire foto da etiqueta com nº de patrimônio. Se não tem etiqueta, fotografe a do fabricante (marca/modelo/série) — o app marca pra etiquetar depois.', cam: 'Tirar foto da etiqueta', tipoDefault: 'CPU', skippable: true, skipLabel: 'Sem CPU' },
   { key: 'monitor1', titulo: 'Monitor 1', sub: 'Tire foto da etiqueta do monitor principal.', cam: 'Tirar foto do monitor', tipoDefault: 'Monitor', skippable: true, skipLabel: 'Sem monitor' },
   { key: 'monitor2', titulo: 'Monitor 2', sub: 'Tire foto da etiqueta do segundo monitor (se existir).', cam: 'Tirar foto do monitor 2', tipoDefault: 'Monitor', skippable: true, skipLabel: 'Só 1 monitor' },
   { key: 'telefone', titulo: 'Telefone IP', sub: 'Tire foto da etiqueta do telefone IP (se existir).', cam: 'Tirar foto do telefone', tipoDefault: 'Telefone IP', skippable: true, skipLabel: 'Sem telefone IP' },
   { key: 'ramal', titulo: 'Ramal', sub: 'Digite o ramal do telefone IP. Se não tem ramal, pode pular.', cam: '', tipoDefault: '', skippable: true, skipLabel: 'Sem ramal' },
   { key: 'usuario', titulo: 'Usuário (opcional)', sub: 'Opcional: tire foto da tela com o nome do usuário OU digite manualmente. Pode finalizar sem preencher.', cam: 'Tirar foto da tela', tipoDefault: '', skippable: true, skipLabel: 'Sem usuário' },
 ];
+// Cópia imutável do fluxo "Posto de Trabalho" (modo padrão)
+const WIZARD_STEPS_POSTO = WIZARD_STEPS.slice();
+
+// v1.4.0: define os steps do wizard conforme modo escolhido
+function aplicarStepsConformeModo(modo, tipoLote) {
+  if (modo === 'lote' && tipoLote) {
+    // Lote: 1 step do tipo escolhido + usuário opcional no fim
+    const tituloMap = { 'CPU': 'CPU', 'Monitor': 'Monitor', 'Telefone IP': 'Telefone IP', 'Notebook': 'Notebook', 'Impressora': 'Impressora' };
+    const t = tituloMap[tipoLote] || tipoLote;
+    WIZARD_STEPS = [
+      { key: 'lote_eq', titulo: t + ' (lote)', sub: 'Cadastre vários ' + t + 's em sequência. Toque "+ Adicionar outro" depois de salvar pra continuar no mesmo tipo.', cam: 'Tirar foto da etiqueta', tipoDefault: tipoLote, skippable: false },
+      { key: 'usuario', titulo: 'Usuário (opcional)', sub: 'Atribua um usuário comum a todos os ' + t + 's deste lote, ou pule.', cam: '', tipoDefault: '', skippable: true, skipLabel: 'Sem usuário' },
+    ];
+  } else if (modo === 'individual') {
+    // Individual: 1 step livre (tipo editável) + usuário opcional
+    WIZARD_STEPS = [
+      { key: 'individual_eq', titulo: 'Ativo (individual)', sub: 'Cadastre ativos diferentes um a um. Escolha o tipo, tire foto, salve. "+ Adicionar outro" pra cadastrar o próximo (qualquer tipo).', cam: 'Tirar foto da etiqueta', tipoDefault: '', skippable: false },
+      { key: 'usuario', titulo: 'Usuário (opcional)', sub: 'Atribua um usuário comum aos ativos cadastrados, ou pule.', cam: '', tipoDefault: '', skippable: true, skipLabel: 'Sem usuário' },
+    ];
+  } else if (modo === 'rapida') {
+    // Rápida: 1 step só com patrimônio (auto-barcode + campo manual)
+    WIZARD_STEPS = [
+      { key: 'rapida', titulo: 'Coleta Rápida', sub: 'Capture apenas o patrimônio para validação de presença física. Use o leitor de código de barras automático.', cam: '', tipoDefault: '', skippable: false },
+    ];
+  } else {
+    // Posto (padrão) — restaura fluxo completo
+    WIZARD_STEPS = WIZARD_STEPS_POSTO.slice();
+  }
+}
+
+// v1.4.0: mostra modal de escolha de modo de inventário
+function mostrarModalModoInventario() {
+  const modal = document.getElementById('modoInvModal');
+  if (!modal) { iniciarInventarioModo('posto'); return; }
+  modal.style.display = 'flex';
+  // Botões dos 4 modos
+  modal.querySelectorAll('.modo-card').forEach(btn => {
+    btn.onclick = () => {
+      const modo = btn.dataset.modo;
+      modal.style.display = 'none';
+      if (modo === 'lote') {
+        // Pergunta o tipo do lote antes
+        const tipo = prompt('Qual tipo de ativo no lote?\n\nDigite uma opção:\n• CPU\n• Monitor\n• Telefone IP\n• Notebook\n• Impressora', 'CPU');
+        if (!tipo) { mostrarModalModoInventario(); return; } // reabre se cancelar
+        const tipoNorm = tipo.trim();
+        const validos = ['CPU', 'Monitor', 'Telefone IP', 'Notebook', 'Impressora'];
+        if (!validos.includes(tipoNorm)) {
+          toast('Tipo inválido. Use: ' + validos.join(', '), 4500);
+          mostrarModalModoInventario();
+          return;
+        }
+        iniciarInventarioModo('lote', tipoNorm);
+      } else {
+        iniciarInventarioModo(modo);
+      }
+    };
+  });
+  const cancelar = document.getElementById('modoInvCancelar');
+  if (cancelar) cancelar.onclick = () => { modal.style.display = 'none'; };
+  modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
+}
+
+// v1.4.0: inicia inventário no modo escolhido
+function iniciarInventarioModo(modo, tipoLote) {
+  STATE.modoInventario = modo || 'posto';
+  STATE.tipoLote = tipoLote || null;
+  aplicarStepsConformeModo(STATE.modoInventario, STATE.tipoLote);
+  try { saveState(); } catch (e) {}
+  showScreen('screen-list');
+  toast('Modo: ' + ({posto:'🖥️ Posto de Trabalho', lote:'📦 Lote de ' + (tipoLote||''), individual:'🎯 Individual', rapida:'⚡ Coleta Rápida'}[STATE.modoInventario] || 'Posto'), 2500);
+}
 
 const DB_NAME = 'inventario-ti';
 const DB_STORE = 'sessao';
@@ -2842,10 +2916,10 @@ function abrirItensPorTipo(tipo) {
 
 // v1.0.8/v1.0.10: Monta um relatório formatado em texto e dispara WhatsApp + planilha
 function montarRelatorioTexto() {
+  // v1.4.0: formato executivo com separadores, métricas de qualidade e vocabulário "Ativos"
   const setor = STATE.setor || '(sem setor)';
   const data = fmtDateBR(STATE.data || todayIso());
   const empresa = (APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'Empresa';
-  const titulo = STATE.titulo || (APP_CONFIG.empresa && APP_CONFIG.empresa.titulo) || 'Inventário de TI';
   const analista = STATE.analista || '';
   const items = STATE.items || [];
   const total = items.length;
@@ -2856,29 +2930,55 @@ function montarRelatorioTexto() {
   }
   const usuariosUnicos = new Set(items.map(i => i.usuario).filter(Boolean)).size;
   const sessoesUnicas = new Set(items.map(i => i.sessionId || ('legacy-' + (i.usuario || '')))).size;
+  const comPat = items.filter(i => {
+    const p = (i.patrimonio || '').toString().trim();
+    return p && !/^(SEM ETIQUETA|SN-|-+)$/i.test(p);
+  }).length;
+  const pctPat = total > 0 ? Math.round((comPat / total) * 100) : 0;
+  const SEP = '━━━━━━━━━━━━━━━━━━━━';
   const linhas = [];
-  linhas.push('*' + titulo + '*');
+  linhas.push('📋 *INVENTÁRIO DE TI*');
+  linhas.push(SEP);
   linhas.push('');
   linhas.push('🏢 *Empresa:* ' + empresa);
   linhas.push('📍 *Setor:* ' + setor);
   linhas.push('📅 *Data:* ' + data);
-  if (analista) linhas.push('👤 *Analista responsável:* ' + analista);
+  if (analista) linhas.push('👤 *Analista:* ' + analista);
   linhas.push('');
-  linhas.push('📦 *Total de itens:* ' + total);
-  linhas.push('👥 *Usuários únicos:* ' + usuariosUnicos);
-  linhas.push('🗂️ *Sessões / estações:* ' + sessoesUnicas);
+  linhas.push(SEP);
+  linhas.push('📦 *Resumo executivo*');
   linhas.push('');
-  linhas.push('📊 *Resumo por tipo:*');
-  const ordemTipos = ['CPU', 'Notebook', 'Monitor', 'Telefone IP', 'Impressora', 'Outro'];
-  const tiposVistos = new Set();
-  for (const t of ordemTipos) {
-    if (porTipo[t]) { linhas.push('• ' + t + ': ' + porTipo[t]); tiposVistos.add(t); }
-  }
+  linhas.push('✅ *' + total + '* ativos registrados');
+  linhas.push('🖥️ *' + sessoesUnicas + '* posto(s) de trabalho cadastrado(s)');
+  linhas.push('👥 *' + usuariosUnicos + '* usuário(s) identificado(s)');
+  linhas.push('🏷️ *' + comPat + '* com patrimônio (' + pctPat + '%)');
+  linhas.push('');
+  linhas.push(SEP);
+  linhas.push('💻 *Ativos por tipo*');
+  linhas.push('');
+  // Lista ordenada com alinhamento por pontos (visual mais limpo no WhatsApp)
+  const fmtTipo = (nome, emoji) => {
+    const n = porTipo[nome] || 0;
+    const pad = (nome + ' ').padEnd(18, '.');
+    return emoji + ' ' + pad + ' ' + n;
+  };
+  linhas.push(fmtTipo('CPU', '🖥️'));
+  linhas.push(fmtTipo('Monitor', '🖼️'));
+  linhas.push(fmtTipo('Telefone IP', '📞'));
+  linhas.push(fmtTipo('Notebook', '💻'));
+  linhas.push(fmtTipo('Impressora', '🖨️'));
+  // Outros tipos não-padrão
+  const padrao = new Set(['CPU','Monitor','Telefone IP','Notebook','Impressora']);
   for (const t in porTipo) {
-    if (!tiposVistos.has(t)) linhas.push('• ' + t + ': ' + porTipo[t]);
+    if (!padrao.has(t)) linhas.push(fmtTipo(t, '📦'));
   }
   linhas.push('');
-  linhas.push('📎 Planilha completa em anexo (.xlsx)');
+  linhas.push(SEP);
+  linhas.push('');
+  linhas.push('📊 Planilha completa em anexo (.xlsx)');
+  linhas.push('_Detalhes de patrimônio, série, observações e usuário de cada ativo._');
+  linhas.push('');
+  linhas.push('⚙️ _OpenInvTI v' + APP_VERSION + ' · ' + APP_TAGLINE + '_');
   return linhas.join('\n');
 }
 
@@ -3186,8 +3286,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     saveState();
     updateTopbar(); updateDashboard();
     refreshList();
-    showScreen('screen-list');
     warmupOcr();
+    // v1.4.0: em vez de ir direto pra screen-list, mostra modal de escolha de modo
+    mostrarModalModoInventario();
   };
   // v1.0.10: popula datalist do analista ao abrir tela inicial e restaura último valor
   if ($('analistaInv')) {
@@ -3262,23 +3363,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (e) { toast('Erro ao ler código de série: ' + (e.message || e), 4000); }
   };
-  // v1.3.0 C: IA identifica com modal TOP 3 sugestões
-  if ($('wizVision')) $('wizVision').onclick = async () => {
-    try {
-      const dados = await identificarEquipamentoComIA();
-      if (!dados) return;
-      let sugestoes = [];
-      if (Array.isArray(dados.sugestoes) && dados.sugestoes.length > 0) {
-        sugestoes = dados.sugestoes.slice(0, 3);
-      } else if (dados.tipo || dados.marca || dados.modelo) {
-        sugestoes = [{ tipo: dados.tipo || '', marca: dados.marca || '', modelo: dados.modelo || '', confianca: 1 }];
-      } else {
-        toast('🤖 IA não conseguiu identificar. Tire foto da etiqueta.', 4000); return;
-      }
-      mostrarModalSugestoesIA(sugestoes);
-    } catch (e) { toast('Erro na IA: ' + (e.message || e), 4000); }
-  };
-  // v1.3.0 C: modal de escolha das TOP 3 sugestões da IA
+  // v1.4.0: botão "IA identifica" removido. mostrarModalSugestoesIA fica disponível
+  // pra uso interno (assistente IA dentro do fluxo da foto da etiqueta).
   function mostrarModalSugestoesIA(sugestoes) {
     const old = document.getElementById('iaSuggestModal');
     if (old) old.remove();

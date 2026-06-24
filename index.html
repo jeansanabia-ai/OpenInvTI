@@ -54,7 +54,7 @@
     <header class="topbar">
       <div>
         <h1 id="topTitle">OpenInvTI</h1>
-        <div class="sub" id="topSub">Inventário de TI Inteligente · v1.3.0</div>
+        <div class="sub" id="topSub">Gestão de Ativos de TI · v1.4.0</div>
       </div>
       <div class="topbar-actions">
         <div class="ia-badge" id="iaBadge" title="IA ativa — extração automática habilitada" style="display:none">🤖 IA</div>
@@ -118,12 +118,12 @@
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-icon">📦</div>
-          <div class="dash-card-label">Sessões</div>
+          <div class="dash-card-label">Postos de trabalho</div>
           <div class="dash-card-value" id="dashSessoes">0</div>
         </div>
         <div class="dash-card">
           <div class="dash-card-icon">💻</div>
-          <div class="dash-card-label">Itens registrados</div>
+          <div class="dash-card-label">Ativos registrados</div>
           <div class="dash-card-value" id="dashItens">0</div>
         </div>
         <div class="dash-card">
@@ -161,10 +161,34 @@
     </section>
 
     <!-- TELA 2: Lista de usuários/sessões — v1.0.10: header com Voltar + título -->
+    <!-- v1.4.0: Modal de escolha de modo de inventário (aparece após Iniciar inventário) -->
+    <div id="modoInvModal" class="modo-modal-bg" style="display:none">
+      <div class="modo-modal">
+        <h3>📋 Como você quer cadastrar?</h3>
+        <button type="button" class="modo-card modo-card-primary" data-modo="posto">
+          <div class="modo-card-title">🖥️ Posto de Trabalho <span class="modo-tag">RECOMENDADO</span></div>
+          <div class="modo-card-desc">Inventarie todos os ativos vinculados a uma estação de trabalho por usuário (Ex.: CPU, Monitor, Telefone IP)</div>
+        </button>
+        <button type="button" class="modo-card" data-modo="lote">
+          <div class="modo-card-title">📦 Cadastro em Lote</div>
+          <div class="modo-card-desc">Registre vários ativos do mesmo tipo de forma contínua.</div>
+        </button>
+        <button type="button" class="modo-card" data-modo="individual">
+          <div class="modo-card-title">🎯 Cadastro Individual</div>
+          <div class="modo-card-desc">Cadastre ativos diferentes um a um.</div>
+        </button>
+        <button type="button" class="modo-card" data-modo="rapida">
+          <div class="modo-card-title">⚡ Coleta Rápida</div>
+          <div class="modo-card-desc">Capture apenas o patrimônio para validação de presença física.</div>
+        </button>
+        <button type="button" class="modo-cancelar" id="modoInvCancelar">Cancelar</button>
+      </div>
+    </div>
+
     <section class="screen" id="screen-list">
       <div class="screen-header">
         <button class="btn-back" id="listBack" aria-label="Voltar para o início">← Voltar</button>
-        <h2 class="screen-header-title">Estações registradas</h2>
+        <h2 class="screen-header-title">Postos de trabalho registrados</h2>
       </div>
       <div class="item-list" id="itemList"></div>
       <div class="empty" id="emptyMsg">Nenhuma estação registrada ainda. Toque em <strong>+ Nova captura</strong> para iniciar.</div>
@@ -182,7 +206,7 @@
         <div class="wizard-progress-label" id="wizProgLabel">Passo 1 de 6</div>
       </div>
 
-      <h2 class="wizard-step-title" id="wizStepTitle">Equipamento principal</h2>
+      <h2 class="wizard-step-title" id="wizStepTitle">Ativo principal</h2>
       <div class="wizard-step-sub" id="wizStepSub">Tire foto da etiqueta com nº de patrimônio</div>
 
       <!-- Foto e OCR (compartilhado entre passos) -->
@@ -198,12 +222,8 @@
           <span class="cap-line-hint">Foto da etiqueta — IA lê e preenche tipo, marca, modelo, patrimônio e nº de série</span>
           <input type="file" accept="image/*" capture="environment" id="wizInput" />
         </label>
-        <div class="wiz-capture-extras" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;justify-content:center">
-          <button type="button" class="btn-mini btn-mini-opt" id="wizVision" title="Identificação por IA (ajuda opcional)">
-            <span class="cap-line-main">🤖 IA identifica (opcional)</span>
-            <span class="cap-line-hint">Quando a etiqueta está ilegível — IA olha a foto do equipamento</span>
-          </button>
-        </div>
+        <!-- v1.4.0: botão "IA identifica" removido. Assistente IA continua rodando automaticamente
+             dentro do fluxo "Tirar foto da etiqueta" (vision + OCR em paralelo). -->
         <div class="ocr-progress" id="wizProg"><div class="bar"></div></div>
         <div class="photo-status" id="wizStatus"></div>
         <div class="hint" id="wizHint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left"></div>
@@ -211,7 +231,7 @@
 
       <!-- Campos do equipamento (passos 1-4) -->
       <div id="wizFieldsEquip">
-        <div class="section-title">Dados do equipamento (confira/corrija)</div>
+        <div class="section-title">Dados do ativo (confira/corrija)</div>
         <div class="field">
           <label for="wTipo">Tipo</label>
           <select id="wTipo">
