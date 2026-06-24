@@ -2,6 +2,38 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.3.0] - 2026-06-24 (MINOR — UX em massa + auto-barcode + IA TOP 3)
+
+### 🔲 Auto-leitura de código de barras estilo leitor de supermercado
+- A câmera customizada de **🔲 Ler código de barras** agora roda `BarcodeDetector` em loop a 4fps sobre o `<video>` ao vivo. Assim que o código entra no quadro, o app **vibra** (80ms), fecha a câmera e preenche o nº de patrimônio automaticamente.
+- A captura manual (botão branco no centro) continua funcionando como fallback pra etiquetas difíceis.
+- A linha vermelha fixa continua sendo o guia de alinhamento.
+
+### 🔲 Botão de barcode também no nº de série
+- Novo botão `🔲` ao lado do campo **Nº de Série** no wizard. Mesmo fluxo do patrimônio: aponta câmera → auto-detecta → preenche o número de série.
+
+### 🤖 IA Identifica com TOP 3 sugestões pra escolher
+- Prompt da IA Vision (Llama 4 Maverick/Scout) reescrito pra retornar **até 3 sugestões prováveis** de tipo+marca+modelo com nível de confiança (em % de 0–100).
+- Novo **modal de escolha** com tema roxo: 3 botões com cada sugestão e um botão "✏️ Nenhuma dessas — vou digitar manualmente". Ao escolher uma opção, o app preenche os campos com flash de destaque.
+- Continua opcional — só dispara se você apertar 🤖 IA identifica.
+
+### ✏️ Renomeação de botões pra eliminar confusão
+- **"✓ Finalizar captura"** virou **"✓ Salvar estação"** (mais claro: salva o equipamento atual e avança o wizard).
+- **"✓ Finalizar inventário"** virou **"🏁 Encerrar inventário"** com tooltip explicando que vai pro relatório final.
+
+### 🗑️ Botão Excluir individual nos itens dos modais
+- Cada item das listas (Sessões / Itens / Usuários / Inventários arquivados) ganha um botão **🗑️** vermelho ao lado do **✏️**. Confirma antes de remover e atualiza dashboard + lista.
+- Botão **Fechar ×** dos modais ficou com fundo sólido (`#0d1424` + box-shadow) pra não ficar mais "atrás" do lápis dos itens ao rolar.
+- Itens sem patrimônio E sem série ganham borda esquerda âmbar + sufixo "· sem dados" no título — fica óbvio que precisa de revisão.
+
+### 🚨 Alerta de itens vazios ao encerrar inventário
+- Ao tocar **🏁 Encerrar inventário**, se houver itens sem patrimônio E sem nº de série, o app pergunta: "Você tem N item(ns) sem dados. OK = excluir vazios e seguir | Cancelar = voltar e revisar". Evita relatório poluído por cadastros incompletos.
+
+### Mudado
+- Cache do SW: `openinvti-v1.3.0-prod`.
+- Subtítulo: `Inventário de TI Inteligente · v1.3.0`.
+- Cada item ganha um `id` único na hora do `STATE.items.push(it)` pra permitir exclusão precisa.
+
 ## [1.2.6] - 2026-06-23 (HOTFIX DECISIVO — Farmanguinhos é o DEFAULT, sem mais race)
 
 ### 🎯 Decisão de produto

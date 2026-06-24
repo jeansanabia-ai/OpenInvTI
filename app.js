@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.2.9';
+const APP_VERSION = '1.3.0';
 const APP_TAGLINE = 'Inventário de TI Inteligente';
 
 // ============================================================
@@ -437,7 +437,10 @@ function abrirHistoricoModal(tipo) {
   // v1.0.11: helper de item clicável com botão editar
   function renderItem(it, indice) {
     const sid = it.sessionId || ('legacy-' + (it.usuario || ''));
-    return '<div class="hm-item hm-item-editable" data-sid="' + sid + '">' +
+    const iid = it.id || '';
+    const vazio = !it.patrimonio && !it.serie;
+    const classeVazio = vazio ? ' hm-item-empty' : '';
+    return '<div class="hm-item hm-item-editable' + classeVazio + '" data-sid="' + sid + '" data-iid="' + iid + '">' +
       '<div class="hm-item-body">' +
         '<strong>' + (indice ? indice + '. ' : '') + (it.tipo || 'Item') + ' — ' + (it.marca || '-') + ' ' + (it.modelo || '') + '</strong>' +
         '<div class="hm-sub">' +
@@ -446,7 +449,10 @@ function abrirHistoricoModal(tipo) {
           (it.usuario ? '👤 ' + it.usuario : '(sem usuário)') +
         '</div>' +
       '</div>' +
-      '<button type="button" class="hm-item-edit" data-sid="' + sid + '" title="Editar esta estação">✏️</button>' +
+      '<div class="hm-item-actions">' +
+        '<button type="button" class="hm-item-edit" data-sid="' + sid + '" title="Editar esta estação">✏️</button>' +
+        '<button type="button" class="hm-item-delete" data-iid="' + iid + '" data-sid="' + sid + '" title="Excluir este item">🗑️</button>' +
+      '</div>' +
     '</div>';
   }
 
@@ -544,15 +550,32 @@ function abrirHistoricoModal(tipo) {
   document.body.appendChild(overlay);
   document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  // v1.0.11: clica em item OU no lápis ✏️ → abre wizard pra editar a estação
+  // v1.0.11 + v1.3.0: clica em item OU no lápis ✏️ → abre wizard pra editar a estação
   overlay.querySelectorAll('.hm-item-edit, .hm-item-editable').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (e.target.closest('.hm-item-delete')) return;
       const archEl = e.target.closest('[data-arch-id]');
       if (archEl) { abrirInventarioArquivado(archEl.dataset.archId); return; }
       const sid = (e.currentTarget.dataset && e.currentTarget.dataset.sid)
                  || (e.target.closest('[data-sid]') && e.target.closest('[data-sid]').dataset.sid);
       if (sid) editarSessaoDoModal(sid);
+    });
+  });
+  // v1.3.0: handler do botão Excluir (🗑️)
+  overlay.querySelectorAll('.hm-item-delete').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const iid = btn.dataset.iid;
+      if (!iid) { toast('Item sem identificador.', 3000); return; }
+      if (!confirm('Excluir este item do inventário? Não dá pra desfazer.')) return;
+      const idx = STATE.items.findIndex(i => i.id === iid);
+      if (idx < 0) { toast('Item não encontrado.', 2500); return; }
+      STATE.items.splice(idx, 1);
+      try { saveState && saveState(); } catch (e) {}
+      try { updateDashboard && updateDashboard(); refreshList && refreshList(); updateTopbar && updateTopbar(); } catch (e) {}
+      toast('Item excluído.', 2500);
+      overlay.remove();
     });
   });
   // v1.1.0: clicar no item arquivado inteiro
@@ -1131,7 +1154,7 @@ function wizardRender() {
   $('wizBack').style.display = stepNum > 1 ? 'flex' : 'none';
   $('wizSkip').style.display = step.skippable ? 'flex' : 'none';
   if (step.skippable) $('wizSkip').textContent = step.skipLabel || 'Pular';
-  $('wizNext').textContent = stepNum === total ? '✓ Finalizar captura' : 'Próximo →';
+  $('wizNext').textContent = stepNum === total ? '✓ Salvar estação' : 'Próximo →';
   if ($('wizSaveNext')) $('wizSaveNext').style.display = (step.key === 'usuario') ? 'flex' : 'none';
   // v1.1.2: botão "Sem etiqueta" só em passos de equipamento
   if ($('wizSemEtiqueta')) $('wizSemEtiqueta').style.display = isEquip ? 'flex' : 'none';
@@ -1377,6 +1400,7 @@ function wizardFinish() {
   for (const it of valid) {
     it.usuario = usr;
     it.ramal = ram;
+    if (!it.id) it.id = uid();
     STATE.items.push(it);
   }
 
@@ -1407,7 +1431,7 @@ function wizardSaveAndContinue() {
   STATE.items = STATE.items.filter((it) => it.sessionId !== sid);
   const valid = STATE.wizardItems.filter(Boolean);
   if (valid.length === 0) { toast('Sem equipamentos para salvar.', 3000); return; }
-  for (const it of valid) { it.usuario = usr; it.ramal = ram; STATE.items.push(it); }
+  for (const it of valid) { it.usuario = usr; it.ramal = ram; if (!it.id) it.id = uid(); STATE.items.push(it); }
   saveState();
   updateTopbar(); updateDashboard();
   toast('Sessao de ' + usrLabel + ' salva. Comece nova captura.');
@@ -1508,12 +1532,34 @@ async function openCustomCamera(stepKey, opts) {
     }
     $('camTorch').style.display = CAM.torchSupported ? 'flex' : 'none';
 
-    // Auto-detect via OCR
-    // v1.1.2: REMOVIDO auto-detect contínuo. Câmera agora SÓ tira foto manual.
-    // Usuário aponta, posiciona, aperta o botão central pra capturar.
     CAM.autoDetect = false;
 
-    // Retorna uma Promise que resolve quando o usuário captura
+    // v1.3.0 B: AUTO-LEITURA de código de barras estilo leitor de supermercado
+    if (mode === 'barcode' && ('BarcodeDetector' in window)) {
+      try {
+        if (CAM.autoBarcodeTimer) { clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null; }
+        const detector = new BarcodeDetector({ formats: ['code_128','ean_13','ean_8','code_39','qr_code','codabar','itf'] });
+        const status = $('camDetectStatus');
+        if (status) { status.textContent = '👁 Mirando o código de barras...'; status.className = 'cam-detect-status show'; }
+        CAM.autoBarcodeTimer = setInterval(async () => {
+          if (!CAM.active) { clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null; return; }
+          try {
+            const codes = await detector.detect(CAM.videoEl);
+            if (codes && codes.length > 0) {
+              const raw = codes[0].rawValue || '';
+              if (raw && raw.length >= 4) {
+                clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null;
+                if (status) { status.textContent = '✓ Código lido: ' + raw; status.className = 'cam-detect-status show ok'; }
+                try { navigator.vibrate && navigator.vibrate(80); } catch (e) {}
+                const resolveFn = CAM.resolve;
+                setTimeout(() => { closeCustomCamera(); if (resolveFn) resolveFn('auto:' + raw); }, 300);
+              }
+            }
+          } catch (e) {}
+        }, 250);
+      } catch (e) { console.warn('Auto-barcode falhou, modo manual:', e.message); }
+    }
+
     return new Promise((resolve, reject) => {
       CAM.resolve = resolve;
       CAM.reject = reject;
@@ -1692,6 +1738,7 @@ function camStartAutoDetect(stepKey) {
 function closeCustomCamera() {
   CAM.active = false;
   if (CAM.detectTimer) { clearInterval(CAM.detectTimer); CAM.detectTimer = null; }
+  if (CAM.autoBarcodeTimer) { clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null; }
   if (CAM.torchOn && CAM.track) {
     try { CAM.track.applyConstraints({ advanced: [{ torch: false }] }); } catch {}
     CAM.torchOn = false;
@@ -2403,11 +2450,18 @@ async function lerCodigoBarras() {
     toast('⚠️ Seu navegador não suporta leitura nativa de código de barras. Use OCR.', 4500);
     return null;
   }
-  // v1.2.9: usa câmera customizada em modo BARCODE (linha vermelha + botão Retomar inventário)
-  let file = null;
+  // v1.2.9 + v1.3.0: câmera customizada com auto-leitura — retorna "auto:CODIGO" ou file
+  let result = null;
   try {
-    file = await openCustomCamera('barcode', { mode: 'barcode' });
-  } catch (e) { file = null; }
+    result = await openCustomCamera('barcode', { mode: 'barcode' });
+  } catch (e) { result = null; }
+  if (typeof result === 'string' && result.indexOf('auto:') === 0) {
+    const raw = result.substring(5);
+    const normalizado = normalizarPatrimonio(raw);
+    toast('✓ Auto: ' + (normalizado || raw), 3500);
+    return normalizado || raw;
+  }
+  let file = (result && result.name) ? result : null;
   if (!file) {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -2496,7 +2550,7 @@ async function _identificarEquipamentoCore(dataUrl) {
     const messages = [{
       role: 'user',
       content: [
-        { type: 'text', text: 'Você é um especialista em equipamentos de TI corporativos. Analise a foto do equipamento e identifique tipo, marca e modelo visíveis. O campo "tipo" DEVE ser exatamente um destes: CPU, Monitor, Notebook, Impressora, Telefone IP, Outro. Se não tiver certeza da marca ou do modelo, deixe a string vazia (não invente). Responda APENAS com JSON válido, sem markdown, no formato: {"tipo":"...","marca":"...","modelo":"..."}' },
+        { type: 'text', text: 'Você é um especialista em equipamentos de TI corporativos. Analise a foto do equipamento e proponha ATÉ 3 sugestões prováveis de tipo+marca+modelo, ordenadas da mais provável pra menos provável. O campo "tipo" DEVE ser exatamente um destes: CPU, Monitor, Notebook, Impressora, Telefone IP, Outro. Se não tiver certeza da marca ou modelo numa sugestão, deixe vazio (não invente). Inclua "confianca" entre 0 e 1. Responda APENAS com JSON válido, sem markdown, no formato: {"sugestoes":[{"tipo":"...","marca":"...","modelo":"...","confianca":0.9},{"tipo":"...","marca":"...","modelo":"...","confianca":0.6}]}' },
         { type: 'image_url', image_url: { url: dataUrl } }
       ]
     }];
@@ -2748,15 +2802,32 @@ function abrirItensPorTipo(tipo) {
   document.body.appendChild(overlay);
   document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-  // v1.0.11: clicar em item OU no lápis ✏️ → abre wizard pra editar
+  // v1.0.11 + v1.3.0: clicar em item OU no lápis ✏️ → abre wizard pra editar
   overlay.querySelectorAll('.hm-item-edit, .hm-item-editable').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (e.target.closest('.hm-item-delete')) return;
       const archEl = e.target.closest('[data-arch-id]');
       if (archEl) { abrirInventarioArquivado(archEl.dataset.archId); return; }
       const sid = (e.currentTarget.dataset && e.currentTarget.dataset.sid)
                  || (e.target.closest('[data-sid]') && e.target.closest('[data-sid]').dataset.sid);
       if (sid) editarSessaoDoModal(sid);
+    });
+  });
+  // v1.3.0: handler do botão Excluir
+  overlay.querySelectorAll('.hm-item-delete').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const iid = btn.dataset.iid;
+      if (!iid) { toast('Item sem identificador.', 3000); return; }
+      if (!confirm('Excluir este item do inventário? Não dá pra desfazer.')) return;
+      const idx = STATE.items.findIndex(i => i.id === iid);
+      if (idx < 0) { toast('Item não encontrado.', 2500); return; }
+      STATE.items.splice(idx, 1);
+      try { saveState && saveState(); } catch (e) {}
+      try { updateDashboard && updateDashboard(); refreshList && refreshList(); updateTopbar && updateTopbar(); } catch (e) {}
+      toast('Item excluído.', 2500);
+      overlay.remove();
     });
   });
   // v1.1.0: clicar no item arquivado inteiro
@@ -3179,31 +3250,81 @@ window.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (e) { toast('Erro ao ler código: ' + (e.message || e), 4000); }
   };
-  // v1.2.2: botão "IA identifica" — identifica tipo/marca/modelo pela foto do equipamento
+  // v1.3.0 A1: botão "🔲" do nº de série — usa mesma câmera barcode, preenche o campo Série
+  if ($('wizBarcodeSerie')) $('wizBarcodeSerie').onclick = async () => {
+    try {
+      const code = await lerCodigoBarras();
+      if (code && $('wSerie')) {
+        $('wSerie').value = code;
+        $('wSerie').style.transition = 'background 0.3s';
+        $('wSerie').style.background = 'rgba(52, 211, 153, 0.15)';
+        setTimeout(() => { $('wSerie').style.background = ''; }, 1500);
+      }
+    } catch (e) { toast('Erro ao ler código de série: ' + (e.message || e), 4000); }
+  };
+  // v1.3.0 C: IA identifica com modal TOP 3 sugestões
   if ($('wizVision')) $('wizVision').onclick = async () => {
     try {
       const dados = await identificarEquipamentoComIA();
       if (!dados) return;
-      const step = WIZARD_STEPS[STATE.wizardStep];
-      const flash = (el) => {
-        if (!el) return;
-        el.style.transition = 'background 0.3s';
-        el.style.background = 'rgba(52, 211, 153, 0.15)';
-        setTimeout(() => { el.style.background = ''; }, 1500);
-      };
-      if (dados.marca && $('wMarca') && !$('wMarca').value) { $('wMarca').value = dados.marca; flash($('wMarca')); }
-      if (dados.modelo && $('wModelo') && !$('wModelo').value) { $('wModelo').value = dados.modelo; flash($('wModelo')); }
-      const tipoTravado = ['monitor1', 'monitor2', 'telefone'].includes(step.key);
-      if (tipoTravado) {
-        if ($('wTipo')) $('wTipo').value = step.tipoDefault;
-      } else if (dados.tipo && $('wTipo')) {
-        const opcoes = Array.from($('wTipo').options).map((o) => o.value);
-        if (opcoes.includes(dados.tipo) && $('wTipo').value !== dados.tipo) { $('wTipo').value = dados.tipo; flash($('wTipo')); }
+      let sugestoes = [];
+      if (Array.isArray(dados.sugestoes) && dados.sugestoes.length > 0) {
+        sugestoes = dados.sugestoes.slice(0, 3);
+      } else if (dados.tipo || dados.marca || dados.modelo) {
+        sugestoes = [{ tipo: dados.tipo || '', marca: dados.marca || '', modelo: dados.modelo || '', confianca: 1 }];
+      } else {
+        toast('🤖 IA não conseguiu identificar. Tire foto da etiqueta.', 4000); return;
       }
-      const achados = [dados.tipo, dados.marca, dados.modelo].filter(Boolean).join(', ');
-      toast(achados ? '🤖 IA identificou: ' + achados + '. Confira/edite.' : '🤖 IA não conseguiu identificar. Tire foto da etiqueta.', 4000);
+      mostrarModalSugestoesIA(sugestoes);
     } catch (e) { toast('Erro na IA: ' + (e.message || e), 4000); }
   };
+  // v1.3.0 C: modal de escolha das TOP 3 sugestões da IA
+  function mostrarModalSugestoesIA(sugestoes) {
+    const old = document.getElementById('iaSuggestModal');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = 'iaSuggestModal';
+    ov.className = 'history-modal-bg';
+    let html = '<div class="history-modal" style="border-top-color:rgba(168,85,247,0.5)">' +
+      '<button class="hm-close" id="iaSuggestClose">Fechar ×</button>' +
+      '<h3>🤖 IA encontrou estas opções — escolha qual bate</h3>';
+    sugestoes.forEach((s, i) => {
+      const conf = Math.round((s.confianca || 0) * 100);
+      const txt = [s.tipo, s.marca, s.modelo].filter(Boolean).join(' · ') || '(sem detalhes)';
+      html += '<button type="button" class="ia-suggest-btn" data-idx="' + i + '" style="display:block;width:100%;text-align:left;background:rgba(124,58,237,0.18);border:1px solid rgba(168,85,247,0.4);border-radius:10px;padding:12px;margin-bottom:8px;color:#E2E8F0;cursor:pointer;font-size:14px"><strong style="color:#C4B5FD">' + (i+1) + '. ' + txt + '</strong>' + (conf > 0 ? '<div style="font-size:11px;color:#94A3B8;margin-top:2px">Confiança ~' + conf + '%</div>' : '') + '</button>';
+    });
+    html += '<button type="button" id="iaSuggestManual" style="display:block;width:100%;background:rgba(100,116,139,0.18);border:1px solid rgba(148,163,184,0.4);border-radius:10px;padding:12px;margin-top:4px;color:#94A3B8;cursor:pointer;font-size:13px">✏️ Nenhuma dessas — vou digitar manualmente</button>';
+    html += '</div>';
+    ov.innerHTML = html;
+    document.body.appendChild(ov);
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    document.getElementById('iaSuggestClose').onclick = () => ov.remove();
+    document.getElementById('iaSuggestManual').onclick = () => ov.remove();
+    const flash = (el) => {
+      if (!el) return;
+      el.style.transition = 'background 0.3s';
+      el.style.background = 'rgba(168, 85, 247, 0.18)';
+      setTimeout(() => { el.style.background = ''; }, 1500);
+    };
+    ov.querySelectorAll('.ia-suggest-btn').forEach(btn => {
+      btn.onclick = () => {
+        const s = sugestoes[parseInt(btn.dataset.idx, 10)];
+        if (!s) return;
+        const step = WIZARD_STEPS[STATE.wizardStep];
+        if (s.marca && $('wMarca')) { $('wMarca').value = s.marca; flash($('wMarca')); }
+        if (s.modelo && $('wModelo')) { $('wModelo').value = s.modelo; flash($('wModelo')); }
+        const tipoTravado = ['monitor1', 'monitor2', 'telefone'].includes(step.key);
+        if (tipoTravado) {
+          if ($('wTipo')) $('wTipo').value = step.tipoDefault;
+        } else if (s.tipo && $('wTipo')) {
+          const opcoes = Array.from($('wTipo').options).map((o) => o.value);
+          if (opcoes.includes(s.tipo)) { $('wTipo').value = s.tipo; flash($('wTipo')); }
+        }
+        toast('✓ Opção ' + (parseInt(btn.dataset.idx,10) + 1) + ' aplicada. Confira/edite os campos.', 3500);
+        ov.remove();
+      };
+    });
+  }
   // v1.1.0: Finalizar inventário do wizard
   if ($('wizFinishInv')) $('wizFinishInv').onclick = async () => {
     try { if (typeof wizardSaveAndContinue === 'function') await wizardSaveAndContinue(); } catch (e) {}
@@ -3452,6 +3573,21 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   $('btnFinish').onclick = () => {
     if (STATE.items.length === 0) { toast('Adicione pelo menos 1 item antes de finalizar.'); return; }
+    // v1.3.0 A4: alerta de itens vazios (sem patrimônio nem série)
+    const vazios = STATE.items.filter(i => {
+      const p = (i.patrimonio || '').toString().trim();
+      const s = (i.serie || '').toString().trim();
+      return (!p || /^-+$/.test(p)) && (!s || /^-+$/.test(s));
+    });
+    if (vazios.length > 0) {
+      const msg = 'Você tem ' + vazios.length + ' item(ns) sem nº de patrimônio nem nº de série.\n\nOK = excluir todos vazios e seguir pro relatório\nCancelar = voltar e revisar';
+      if (!confirm(msg)) return;
+      const ids = new Set(vazios.map(v => v.id));
+      STATE.items = STATE.items.filter(i => !ids.has(i.id));
+      try { saveState && saveState(); } catch (e) {}
+      toast('✓ ' + vazios.length + ' item(ns) vazio(s) removido(s).', 3000);
+      if (STATE.items.length === 0) { toast('Não restou item pra finalizar.', 3000); return; }
+    }
     $('rData').textContent = fmtDateBR(STATE.data);
     $('rSetor').textContent = STATE.setor;
     $('rTotal').textContent = STATE.items.length;
