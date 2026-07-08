@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.5.1</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.5.3</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -148,7 +148,8 @@
       </div>
       <div class="field">
         <label for="setorInv">Setor</label>
-        <input type="text" id="setorInv" placeholder="Informe o setor" />
+        <input type="text" id="setorInv" list="setoresList" placeholder="Informe o setor" autocomplete="off" />
+        <datalist id="setoresList"></datalist>
       </div>
       <div class="field">
         <label for="analistaInv">Analista responsável <span class="opt-label">(opcional)</span></label>
@@ -298,7 +299,8 @@
         </div>
         <div class="field">
           <label for="wObs">Observações</label>
-          <textarea id="wObs" placeholder="Ex.: Etiqueta DDE/CDT, sem etiqueta de patrimônio, etc."></textarea>
+          <input type="text" id="wObs" list="obsList" placeholder="Ex.: Etiqueta DDE/CDT, sem etiqueta de patrimônio, etc." autocomplete="off" />
+          <datalist id="obsList"></datalist>
         </div>
       </div>
 
@@ -309,7 +311,8 @@
         </div>
         <div class="field">
           <label for="wRamal">Ramal</label>
-          <input type="tel" id="wRamal" placeholder="Ex.: 5190" inputmode="numeric" />
+          <input type="tel" id="wRamal" list="ramaisList" placeholder="Ex.: 5190" inputmode="numeric" autocomplete="off" />
+          <datalist id="ramaisList"></datalist>
         </div>
       </div>
 
@@ -539,8 +542,6 @@
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
-                                                                                                                                                                                                                        

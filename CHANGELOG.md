@@ -2,6 +2,94 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.5.3] - 2026-07-08 (PATCH — autocomplete geral + emoji seguro no título)
+
+### 🔄 Autocomplete de TODOS os campos com valores já usados
+Todos os campos livres do wizard e da home agora oferecem **sugestões automáticas** com base no que já foi digitado antes (dentro do inventário atual E de inventários arquivados). O usuário digita a primeira letra e o navegador mostra a lista de opções.
+
+Novos `<datalist>` adicionados e populados pela função `popularSugestoesHistoricas()`:
+
+- `setoresList` (campo Setor na home) — lista de todos os setores já usados
+- `obsList` (campo Observações no wizard) — comentários comuns
+- `ramaisList` (campo Ramal do telefone IP) — ramais já registrados
+
+E os que já existiam (`analistasList`, `marcasList`, `modelosList`, `usuariosList`) agora também fazem merge dos valores dos inventários arquivados.
+
+A função roda automaticamente:
+- Ao entrar na tela home (`popularAnalistasDatalist()` já existente, agora complementado)
+- Ao entrar no wizard (novo hook no `startWizard`)
+
+Limite de 40 sugestões por campo, ordenadas alfabeticamente (locale pt-BR), truncadas em 120 caracteres.
+
+### 📋 Emoji seguro no título do relatório
+O título do relatório WhatsApp agora tem `📋` no início:
+
+```
+📋 *INVENTÁRIO DE ATIVOS DE TI*
+```
+
+`📋` (CLIPBOARD, Unicode 6.0) é o único emoji adicionado — testado como muito comum em fontes modernas do Android/iOS. Se algum cliente antigo renderizar como losango, o resto do relatório continua limpo (só símbolos Unicode 1.1). O emoji fica como "cereja no topo", opcional.
+
+### Mudado
+- Cache do SW: `openinvti-v1.5.3-prod`.
+- Subtítulo: `Gestão de Ativos de TI · v1.5.3`.
+
+## [1.5.2] - 2026-07-08 (PATCH — relatório WhatsApp com símbolos Unicode 1.1 universais)
+
+### 🔧 Emojis coloridos removidos do relatório WhatsApp
+Os emojis coloridos (`📋 🏢 📍 📅 👤 ✅ 🏭 👥 🏷️ 💻 📺 📞 📓 📠 📎 ⚙️`) que estavam no relatório da v1.5.1 podem virar `❖` (losango) ou `?` no WhatsApp Web / Desktop quando o cliente do destinatário usa fonte antiga que não tem essas glyphs Unicode.
+
+Reescrito para usar **apenas símbolos Unicode 1.1 (do ano 1993)**, que TODA fonte tem — mesmo as mais antigas:
+
+- `▪` (BLACK SMALL SQUARE, U+25AA) — bullet dos campos
+- `✓` (CHECK MARK, U+2713) — marcador do resumo executivo
+- `→` (RIGHTWARDS ARROW, U+2192) — separador campo→valor
+- `─` (BOX DRAWINGS LIGHT HORIZONTAL, U+2500) — linha divisora
+- Formatação `*negrito*` e `_itálico_` (nativa do WhatsApp)
+
+Resultado — mesma organização visual, **zero risco de losango em qualquer cliente**:
+
+```
+*INVENTÁRIO DE ATIVOS DE TI*
+─────────────────────
+
+▪ *Empresa:*  Farmanguinhos
+▪ *Setor:*    Laboratório Controle de Qualidade
+▪ *Data:*     07/07/2026
+▪ *Analista:* Jean Sanabia
+
+─────────────────────
+*RESUMO EXECUTIVO*
+─────────────────────
+
+✓ Total de ativos          →  *36*
+✓ Postos de trabalho       →  *12*
+✓ Usuários únicos          →  *1*
+✓ Ativos com patrimônio    →  *31* (86%)
+
+─────────────────────
+*ATIVOS POR TIPO*
+─────────────────────
+
+▪ CPUs                 →  *0*
+▪ Monitores            →  *36*
+▪ Telefones IP         →  *0*
+▪ Notebooks            →  *0*
+▪ Impressoras          →  *0*
+
+─────────────────────
+
+*Planilha completa em anexo (.xlsx)*
+_Contém detalhes de patrimônio, nº de série, observações e usuário de cada ativo._
+
+_OpenInvTI v1.5.2 · Gestão de Ativos de TI_
+```
+
+### Mudado
+- Cache do SW: `openinvti-v1.5.2-prod`.
+- Subtítulo: `Gestão de Ativos de TI · v1.5.2`.
+- `montarRelatorioTexto` reescrita: helper `fmtLinha(label, valor, extra)` e `fmtTipo(nome, label)` sem parâmetro de emoji.
+
 ## [1.5.1] - 2026-07-08 (PATCH — QR Code + wizard enxuto + relatório WhatsApp reformulado)
 
 ### 📱 Botão QR Code no wizard (3º método de captura)

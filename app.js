@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.5.3';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -1302,6 +1302,8 @@ function startWizard(sessionId) {
   }
 
   showScreen('screen-wizard');
+  // v1.5.3: popula todos os datalists de sugestão histórica antes do wizard renderizar
+  try { popularSugestoesHistoricas(); } catch (e) {}
   wizardRender();
 }
 
@@ -2563,6 +2565,57 @@ function popularAnalistasDatalist() {
     dl.innerHTML = lista.map(n => '<option value="' + n.replace(/"/g, '&quot;') + '"></option>').join('');
   } catch (e) {}
 }
+
+// v1.5.3: Populador GERAL de todas as sugestões históricas (usado em campos livres do wizard e da home)
+function popularSugestoesHistoricas() {
+  // Coleta todos os itens já cadastrados (sessão atual + inventários arquivados)
+  const setores = new Set();
+  const analistas = new Set();
+  const observacoes = new Set();
+  const ramais = new Set();
+  const patrimonios = new Set();
+  const series = new Set();
+  const usuarios = new Set();
+  try {
+    (STATE.items || []).forEach(it => {
+      if (it.obs) observacoes.add(String(it.obs).trim());
+      if (it.ramal) ramais.add(String(it.ramal).trim());
+      if (it.patrimonio) patrimonios.add(String(it.patrimonio).trim());
+      if (it.serie) series.add(String(it.serie).trim());
+      if (it.usuario) usuarios.add(String(it.usuario).trim());
+    });
+  } catch (e) {}
+  try {
+    const arq = STATE.historicoSessoes || [];
+    arq.forEach(inv => {
+      if (inv.setor) setores.add(inv.setor);
+      if (inv.analista) analistas.add(inv.analista);
+      (inv.items || []).forEach(it => {
+        if (it.obs) observacoes.add(String(it.obs).trim());
+        if (it.ramal) ramais.add(String(it.ramal).trim());
+        if (it.usuario) usuarios.add(String(it.usuario).trim());
+      });
+    });
+  } catch (e) {}
+  // Filtra vazios e sanitiza
+  const esc = (s) => s.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  const fill = (id, set) => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    const arr = Array.from(set).filter(v => v && v.length > 0 && v.length < 120).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    dl.innerHTML = arr.slice(0, 40).map(v => '<option value="' + esc(v) + '"></option>').join('');
+  };
+  fill('setoresList', setores);
+  fill('obsList', observacoes);
+  fill('ramaisList', ramais);
+  fill('usuariosList', usuarios);
+  // Analistas já tem função dedicada, mas garantimos merge com histórico do inventário
+  try {
+    const stored = JSON.parse(localStorage.getItem('openinvti-analistas') || '[]');
+    stored.forEach(a => analistas.add(a));
+    fill('analistasList', analistas);
+  } catch (e) { fill('analistasList', analistas); }
+}
 // v1.1.2: Aprende com o uso — registra marca/modelo digitado manualmente
 function registrarMarcaModelo(marca, modelo) {
   if (!marca && !modelo) return;
@@ -3064,53 +3117,56 @@ function montarRelatorioTexto() {
     return p && !/^(SEM ETIQUETA|SN-|-+)$/i.test(p);
   }).length;
   const pctPat = total > 0 ? Math.round((comPat / total) * 100) : 0;
-  // v1.5.1: separador ASCII (compatível com toda fonte WhatsApp) + emojis Unicode 6.0
-  const SEP = '─────────────────';
+  // v1.5.2: usa APENAS símbolos Unicode 1.1 (1993) — presentes em TODA fonte
+  // (▪ ● ✓ → ▬) e emojis fora daí têm risco de virar losango no WhatsApp Web antigo
+  const SEP = '─────────────────────';
   const linhas = [];
-  linhas.push('📋  *INVENTÁRIO DE ATIVOS DE TI*');
+  linhas.push('📋 *INVENTÁRIO DE ATIVOS DE TI*');
   linhas.push(SEP);
   linhas.push('');
-  linhas.push('🏢 *Empresa* → ' + empresa);
-  linhas.push('📍 *Setor* → ' + setor);
-  linhas.push('📅 *Data* → ' + data);
-  if (analista) linhas.push('👤 *Analista* → ' + analista);
+  linhas.push('▪ *Empresa:*  ' + empresa);
+  linhas.push('▪ *Setor:*    ' + setor);
+  linhas.push('▪ *Data:*     ' + data);
+  if (analista) linhas.push('▪ *Analista:* ' + analista);
   linhas.push('');
   linhas.push(SEP);
-  linhas.push('📊 *RESUMO EXECUTIVO*');
+  linhas.push('*RESUMO EXECUTIVO*');
   linhas.push(SEP);
   linhas.push('');
-  linhas.push('✅ Total de ativos          →  *' + total + '*');
-  linhas.push('🏭 Postos de trabalho       →  *' + sessoesUnicas + '*');
-  linhas.push('👥 Usuários únicos          →  *' + usuariosUnicos + '*');
-  linhas.push('🏷️ Ativos com patrimônio    →  *' + comPat + '* (' + pctPat + '%)');
-  linhas.push('');
-  linhas.push(SEP);
-  linhas.push('💻 *ATIVOS POR TIPO*');
-  linhas.push(SEP);
-  linhas.push('');
-  // Alinhamento tabular com emojis universais (Unicode 6.0) e nomes claros
-  const fmtTipo = (nome, emoji, label) => {
-    const n = porTipo[nome] || 0;
-    const pad = (label || nome).padEnd(18, ' ');
-    return emoji + '  ' + pad + '→  *' + n + '*';
+  const fmtLinha = (label, valor, extra) => {
+    const pad = label.padEnd(24, ' ');
+    return '✓ ' + pad + '→  *' + valor + '*' + (extra ? ' ' + extra : '');
   };
-  linhas.push(fmtTipo('CPU', '💻', 'CPUs'));
-  linhas.push(fmtTipo('Monitor', '📺', 'Monitores'));
-  linhas.push(fmtTipo('Telefone IP', '📞', 'Telefones IP'));
-  linhas.push(fmtTipo('Notebook', '📓', 'Notebooks'));
-  linhas.push(fmtTipo('Impressora', '📠', 'Impressoras'));
-  // Outros tipos não-padrão
+  linhas.push(fmtLinha('Total de ativos', total));
+  linhas.push(fmtLinha('Postos de trabalho', sessoesUnicas));
+  linhas.push(fmtLinha('Usuários únicos', usuariosUnicos));
+  linhas.push(fmtLinha('Ativos com patrimônio', comPat, '(' + pctPat + '%)'));
+  linhas.push('');
+  linhas.push(SEP);
+  linhas.push('*ATIVOS POR TIPO*');
+  linhas.push(SEP);
+  linhas.push('');
+  const fmtTipo = (nome, label) => {
+    const n = porTipo[nome] || 0;
+    const pad = (label || nome).padEnd(20, ' ');
+    return '▪ ' + pad + '→  *' + n + '*';
+  };
+  linhas.push(fmtTipo('CPU', 'CPUs'));
+  linhas.push(fmtTipo('Monitor', 'Monitores'));
+  linhas.push(fmtTipo('Telefone IP', 'Telefones IP'));
+  linhas.push(fmtTipo('Notebook', 'Notebooks'));
+  linhas.push(fmtTipo('Impressora', 'Impressoras'));
   const padrao = new Set(['CPU','Monitor','Telefone IP','Notebook','Impressora']);
   for (const t in porTipo) {
-    if (!padrao.has(t)) linhas.push(fmtTipo(t, '📦', t));
+    if (!padrao.has(t)) linhas.push(fmtTipo(t, t));
   }
   linhas.push('');
   linhas.push(SEP);
   linhas.push('');
-  linhas.push('📎 *Planilha completa em anexo (.xlsx)*');
+  linhas.push('*Planilha completa em anexo (.xlsx)*');
   linhas.push('_Contém detalhes de patrimônio, nº de série, observações e usuário de cada ativo._');
   linhas.push('');
-  linhas.push('⚙️ _OpenInvTI v' + APP_VERSION + ' · ' + APP_TAGLINE + '_');
+  linhas.push('_OpenInvTI v' + APP_VERSION + ' · ' + APP_TAGLINE + '_');
   return linhas.join('\n');
 }
 
@@ -3466,6 +3522,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   // v1.0.10: popula datalist do analista ao abrir tela inicial e restaura último valor
   if ($('analistaInv')) {
     popularAnalistasDatalist();
+    // v1.5.3: também popula setoresList e outros datalists de sugestão histórica
+    try { popularSugestoesHistoricas(); } catch (e) {}
     if (STATE.analista) {
       $('analistaInv').value = STATE.analista;
     } else {
