@@ -52,9 +52,18 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div>
-        <h1 id="topTitle">OpenInvTI</h1>
-        <div class="sub" id="topSub">Gestão de Ativos de TI · v1.4.0</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="menuBtn" class="hamburger-btn" aria-label="Menu" title="Menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="7" x2="20" y2="7"/>
+            <line x1="4" y1="12" x2="20" y2="12"/>
+            <line x1="4" y1="17" x2="20" y2="17"/>
+          </svg>
+        </button>
+        <div>
+          <h1 id="topTitle">OpenInvTI</h1>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.5.0</div>
+        </div>
       </div>
       <div class="topbar-actions">
         <div class="ia-badge" id="iaBadge" title="IA ativa — extração automática habilitada" style="display:none">🤖 IA</div>
@@ -166,20 +175,20 @@
       <div class="modo-modal">
         <h3>📋 Como você quer cadastrar?</h3>
         <button type="button" class="modo-card modo-card-primary" data-modo="posto">
-          <div class="modo-card-title">🖥️ Posto de Trabalho <span class="modo-tag">RECOMENDADO</span></div>
+          <div class="modo-card-title"><svg class="modo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/><rect x="6" y="7" width="8" height="6" rx="0.5"/><circle cx="17" cy="10" r="1"/></svg><span>Posto de Trabalho</span> <span class="modo-tag">RECOMENDADO</span></div>
           <div class="modo-card-desc">Inventarie todos os ativos vinculados a uma estação de trabalho por usuário (Ex.: CPU, Monitor, Telefone IP)</div>
         </button>
         <button type="button" class="modo-card" data-modo="lote">
-          <div class="modo-card-title">📦 Cadastro em Lote</div>
-          <div class="modo-card-desc">Registre vários ativos do mesmo tipo de forma contínua.</div>
+          <div class="modo-card-title"><svg class="modo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 16l9 5 9-5"/></svg><span>Vários do mesmo tipo</span></div>
+          <div class="modo-card-desc">Ex.: 50 Telefones IP · 100 monitores novos. Uma caixa com muitos ativos iguais.</div>
         </button>
         <button type="button" class="modo-card" data-modo="individual">
-          <div class="modo-card-title">🎯 Cadastro Individual</div>
-          <div class="modo-card-desc">Cadastre ativos diferentes um a um.</div>
+          <div class="modo-card-title"><svg class="modo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Itens avulsos</span></div>
+          <div class="modo-card-desc">Ex.: sobras da manutenção, itens em conserto. Vários tipos misturados.</div>
         </button>
         <button type="button" class="modo-card" data-modo="rapida">
-          <div class="modo-card-title">⚡ Coleta Rápida</div>
-          <div class="modo-card-desc">Capture apenas o patrimônio para validação de presença física.</div>
+          <div class="modo-card-title"><svg class="modo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg><span>Contagem rápida</span></div>
+          <div class="modo-card-desc">Ex.: auditoria de presença, fechamento anual. Só lê patrimônio (câmera fica aberta).</div>
         </button>
         <button type="button" class="modo-cancelar" id="modoInvCancelar">Cancelar</button>
       </div>
@@ -438,6 +447,12 @@
     <div id="cameraModal" class="cam-modal-bg" style="display:none">
       <video id="camVideo" class="cam-video" playsinline muted autoplay></video>
       <div class="cam-overlay">
+        <!-- v1.5.0: frame QR Code (só visível em qr-mode) -->
+        <div class="cam-qr-frame"><span></span></div>
+        <!-- v1.5.0: contador de itens em modo contínuo (lote/rápida) -->
+        <div class="cam-counter"><span class="cam-counter-num" id="camCounterNum">0</span> <span id="camCounterLabel">itens lidos</span></div>
+        <div class="cam-counter-list" id="camCounterList"></div>
+
         <div class="cam-guide-frame">
           <div class="cam-guide-corner tl"></div>
           <div class="cam-guide-corner tr"></div>
@@ -474,6 +489,44 @@
       <canvas id="camCanvas" style="display:none"></canvas>
     </div>
 
+  </div>
+
+  <!-- v1.5.0: menu lateral (hamburger) -->
+  <div id="sideMenu" class="side-menu-bg">
+    <nav class="side-menu">
+      <div class="side-menu-header">
+        <div class="side-menu-header-icon">📋</div>
+        <div class="side-menu-header-info">
+          <h4>OpenInvTI</h4>
+          <p>Gestão de Ativos de TI · v1.5.0</p>
+        </div>
+      </div>
+      <div class="side-menu-list">
+        <button type="button" class="side-menu-item active" data-menu="home">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
+          Home
+        </button>
+        <button type="button" class="side-menu-item" data-menu="historico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+          Inventários salvos
+        </button>
+        <button type="button" class="side-menu-item" data-menu="analise">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>
+          Análise / Dashboard
+        </button>
+        <button type="button" class="side-menu-item" data-menu="config">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Configurações
+        </button>
+        <button type="button" class="side-menu-item" data-menu="ajuda">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Sobre / Ajuda
+        </button>
+      </div>
+      <div class="side-menu-footer">
+        Open-source · MIT<br>github.com/jeansanabia-ai/OpenInvTI
+      </div>
+    </nav>
   </div>
 
   <div class="toast" id="toast"></div>

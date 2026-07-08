@@ -683,6 +683,73 @@ html.light-mode .share-modal-steps { color: #475569; }
   display: none; /* oculta por padrão (modo foto-etiqueta) */
 }
 #cameraModal.barcode-mode .cam-scan-line { display: block; }
+
+/* v1.5.0: Frame guia QR Code — quadrado central + cantos brancos, como visor de câmera */
+.cam-qr-frame {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 65%; max-width: 320px;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  display: none;
+  pointer-events: none;
+}
+.cam-qr-frame::before,
+.cam-qr-frame::after,
+.cam-qr-frame > span::before,
+.cam-qr-frame > span::after {
+  content: '';
+  position: absolute;
+  width: 40px; height: 40px;
+  border: 4px solid #67E8F9;
+  border-radius: 4px;
+}
+.cam-qr-frame::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.cam-qr-frame::after { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+.cam-qr-frame > span::before { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+.cam-qr-frame > span::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+#cameraModal.qr-mode .cam-qr-frame { display: block; animation: qrPulse 1.4s ease-in-out infinite; }
+#cameraModal.qr-mode .cam-guide-frame { display: none; }
+#cameraModal.qr-mode .cam-guide-label { background: rgba(6, 182, 212, 0.9); border-color: rgba(103, 232, 249, 0.8); }
+@keyframes qrPulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(103, 232, 249, 0.55)); }
+  50%      { filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.85)); }
+}
+
+/* v1.5.0: contador de "lote" e "contagem rápida" no rodapé da câmera */
+.cam-counter {
+  position: absolute;
+  top: 76px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(6, 182, 212, 0.92);
+  color: #FFFFFF;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-weight: 800; font-size: 14px;
+  letter-spacing: 0.4px;
+  box-shadow: 0 8px 22px rgba(6, 182, 212, 0.4);
+  z-index: 100;
+  display: none;
+}
+#cameraModal.continuous-mode .cam-counter { display: block; }
+.cam-counter-num { font-size: 18px; margin-right: 4px; }
+.cam-counter-list {
+  position: absolute;
+  bottom: 130px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.9);
+  color: #E2E8F0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  min-width: 220px; max-width: 90%;
+  display: none;
+  z-index: 100;
+  border: 1px solid rgba(103, 232, 249, 0.25);
+}
+#cameraModal.continuous-mode .cam-counter-list { display: block; }
+.cam-counter-list-item { padding: 3px 0; opacity: 0.9; }
+.cam-counter-list-item:first-child { opacity: 1; font-weight: 700; color: #67E8F9; }
 /* No modo barcode o frame todo vira vermelho pra reforçar visualmente */
 #cameraModal.barcode-mode .cam-guide-corner { border-color: #FF3B30; }
 #cameraModal.barcode-mode .cam-guide-label { background: rgba(220, 38, 38, 0.92); }
@@ -883,9 +950,17 @@ html.light-mode .share-modal-steps { color: #475569; }
 .modo-card-title {
   font-size: 16px; font-weight: 800;
   color: #F1F5F9;
-  margin-bottom: 4px;
-  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 6px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
 }
+.modo-svg {
+  width: 26px; height: 26px;
+  flex-shrink: 0;
+  color: #67E8F9;
+  filter: drop-shadow(0 2px 6px rgba(6, 182, 212, 0.35));
+}
+.modo-card-primary .modo-svg { color: #FFFFFF; }
+.modo-card:hover .modo-svg { color: #A5F3FC; }
 .modo-card-desc {
   font-size: 12.5px; font-weight: 500;
   color: #94A3B8;
@@ -926,6 +1001,123 @@ html.light-mode .modo-card {
 }
 html.light-mode .modo-card-title { color: #0F172A; }
 html.light-mode .modo-card-desc { color: #475569; }
+
+/* v1.5.0: Banner de configuração prévia do modo Lote */
+.lote-precfg {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.15) 0%, rgba(234, 88, 12, 0.10) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.lote-precfg h4 {
+  color: #FCD34D; margin: 0 0 8px;
+  font-size: 13px; font-weight: 800;
+  letter-spacing: 0.3px;
+}
+.lote-precfg .field { margin-bottom: 8px; }
+.lote-precfg .field label {
+  color: #FDE68A; font-size: 12px;
+  font-weight: 700;
+}
+.lote-precfg .lote-precfg-hint {
+  font-size: 11px; color: #FDBA74;
+  margin-top: 4px; opacity: 0.85;
+}
+
+/* Menu lateral (hamburger) */
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  color: #E2E8F0;
+  padding: 8px 10px;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.hamburger-btn:hover { background: rgba(6, 182, 212, 0.12); }
+.hamburger-btn svg { width: 22px; height: 22px; }
+
+.side-menu-bg {
+  position: fixed; inset: 0;
+  background: rgba(0, 4, 10, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 9997;
+  display: none;
+  animation: fadeIn 0.2s;
+}
+.side-menu-bg.open { display: block; }
+.side-menu {
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  width: 88%; max-width: 320px;
+  background: linear-gradient(180deg, #0d1424 0%, #0a1020 100%);
+  border-right: 1px solid rgba(6, 182, 212, 0.22);
+  padding: 20px 0;
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+  z-index: 9998;
+}
+.side-menu-bg.open .side-menu { transform: translateX(0); }
+.side-menu-header {
+  padding: 4px 22px 20px;
+  border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.side-menu-header-icon {
+  font-size: 32px;
+}
+.side-menu-header-info h4 {
+  color: #F1F5F9;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+.side-menu-header-info p {
+  margin: 2px 0 0;
+  color: #94A3B8;
+  font-size: 11px;
+}
+.side-menu-list { margin-top: 8px; }
+.side-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  cursor: pointer;
+  color: #E2E8F0;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+.side-menu-item:hover { background: rgba(6, 182, 212, 0.10); color: #67E8F9; }
+.side-menu-item svg { width: 22px; height: 22px; flex-shrink: 0; color: #67E8F9; }
+.side-menu-item.active { background: rgba(6, 182, 212, 0.14); color: #67E8F9; border-left: 3px solid #06B6D4; padding-left: 19px; }
+.side-menu-footer {
+  padding: 20px 22px 4px;
+  border-top: 1px solid rgba(6, 182, 212, 0.15);
+  margin-top: 12px;
+  color: #64748B;
+  font-size: 11px;
+  line-height: 1.5;
+}
+html.light-mode .side-menu {
+  background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+  border-right-color: rgba(37, 99, 235, 0.22);
+}
+html.light-mode .side-menu-header-info h4 { color: #0F172A; }
+html.light-mode .side-menu-item { color: #334155; }
+html.light-mode .side-menu-item svg { color: #2563EB; }
 
 /* === Hero da tela inicial OpenInvTI === */
 .hero {

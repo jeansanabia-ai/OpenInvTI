@@ -2,6 +2,75 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.5.0] - 2026-07-08 (MINOR — fluxo em massa turbinado + menu lateral + QR Code)
+
+### 🐛 BUG CRÍTICO CORRIGIDO — caixa de captura nos 3 modos novos
+Na v1.4.0 os modos **Vários do mesmo tipo**, **Itens avulsos** e **Contagem rápida** abriam com a tela do wizard **sem os botões de captura** (só texto e "Próximo →"). Causa: `isEquip` no `wizardRender()` reconhecia apenas os keys antigos (`cpu`, `monitor1`, `monitor2`, `telefone`). Adicionados os keys `lote_eq`, `individual_eq` e `rapida` à lista — agora os 3 modos mostram os botões 🔲 Ler código de barras + 📷 Tirar foto normalmente.
+
+### 📦 CADASTRO EM LOTE turbinado (câmera contínua estilo leitor de supermercado)
+Ao escolher **Vários do mesmo tipo**, o app agora pergunta uma única vez os **padrões** (marca + modelo + usuário comum) e abre a câmera em **modo contínuo**:
+
+- Câmera **fica aberta** durante todo o lote — cada código lido vira 1 ativo cadastrado sem sair da tela de captura
+- **Vibração curta** (60ms) a cada leitura
+- **Contador visível** no topo: "**12 CPUs lidos**"
+- **Últimos 3 patrimônios** exibidos no rodapé em tempo real
+- **Anti-duplicata**: mesmo código lido nos últimos 2.5s é ignorado
+- Marca/modelo/usuário do padrão são aplicados a todos os ativos do lote
+- Ao encerrar (botão ← Voltar), toast confirma: "✓ Lote encerrado: N CPUs cadastrados"
+
+Resultado: cadastro de **50 telefones IP em ~3 minutos** vs. os ~45 minutos do fluxo anterior.
+
+### ⚡ CONTAGEM RÁPIDA modo perene
+Ao escolher **Contagem rápida**, câmera abre e **fica aberta permanentemente**:
+
+- Cada leitura de código de barras/QR salva o patrimônio direto no inventário
+- Categoria automática: tipo="Outro", usuário="Contagem rápida", observação com data de coleta
+- Ideal para **auditoria de presença** (valida se ativos estão fisicamente no local)
+- Dedup em nível de STATE (mesmo patrimônio nunca é cadastrado 2x)
+- Vibração + contador + últimos 3 na tela em tempo real
+
+### 📱 Frame guia para QR Code
+Novo overlay `.cam-qr-frame` (quadrado central com cantos ciano brilhantes + animação de pulso suave). Ativado com `#cameraModal.qr-mode`. Segue a mesma filosofia da linha vermelha do barcode: **guia visual para alinhar o QR no centro** e conseguir leitura consistente. O leitor de código de barras (linha vermelha) foi mantido intocado como pedido.
+
+### 🍔 Menu lateral (hamburger)
+Botão **☰** no topo esquerdo abre painel lateral com 5 items:
+
+- 🏠 **Home** — volta pra tela inicial
+- 🕐 **Inventários salvos** — abre modal do histórico
+- 📊 **Análise / Dashboard** — abre gráficos e estatísticas
+- ⚙️ **Configurações** — abre tela de setup
+- ❓ **Sobre / Ajuda** — mostra versão + FAQ rápida
+
+Painel desliza da esquerda com transição suave (`cubic-bezier(.4,0,.2,1)`), fundo escurecido com `backdrop-filter: blur(4px)`. Ícones em SVG inline (não emojis), coerentes com o design moderno. Suporta modo claro.
+
+### 🎨 Ícones SVG modernos nos cards do modal de escolha
+Os 4 cards do modal "Como você quer cadastrar?" agora usam **ícones SVG inline** em vez de emojis:
+
+- 🖥️ Emoji → SVG de mesa com monitor + torre
+- 📦 Emoji → SVG de caixas empilhadas
+- 🎯 Emoji → SVG de grid 2×2 (representa "vários tipos diferentes")
+- ⚡ Emoji → SVG de raio dinâmico
+
+Ícones em `#67E8F9` (ciano) com `drop-shadow` sutil, hover mais claro, tamanho 26×26 fixo. Aparência de app moderno em vez de "app hobby com emojis".
+
+### 🏷️ Modos renomeados e descrições focadas em cenário real
+- ~~Cadastro em Lote~~ → **Vários do mesmo tipo** *(Ex.: 50 Telefones IP · 100 monitores novos)*
+- ~~Cadastro Individual~~ → **Itens avulsos** *(Ex.: sobras da manutenção, itens em conserto)*
+- ~~Coleta Rápida~~ → **Contagem rápida** *(Ex.: auditoria de presença, fechamento anual)*
+- **Posto de Trabalho** mantido (nome ok pela análise)
+
+Cada descrição agora começa com **exemplo prático** ("Ex.: ...") pra o inventariante identificar o cenário em segundos.
+
+### Mudado
+- Cache do SW: `openinvti-v1.5.0-prod`.
+- Subtítulo do header: `Gestão de Ativos de TI · v1.5.0`.
+- `openCustomCamera(stepKey, opts)` aceita `opts.mode = 'qr'` (mesmo motor do barcode com frame diferente) e `opts.continuous = true` (loop de detecção que chama `opts.onDetect(raw)` a cada leitura sem fechar a câmera).
+- STATE ganha `loteConfig` (marca/modelo/usuário padrão do lote atual, persistido no IndexedDB).
+- Toast de mudança de modo mostra o nome novo ("📦 Vários do mesmo tipo · CPU").
+
+### Não mexido (por pedido explícito)
+- Leitor de código de barras (linha vermelha animada) — permanece exatamente como estava, pois estava funcionando perfeitamente conforme feedback do teste em campo.
+
 ## [1.4.0] - 2026-06-24 (MINOR — 4 modos de inventário + vocabulário corporativo + WhatsApp executivo)
 
 ### 📋 4 modos de inventário (modal após "▶ Iniciar inventário")

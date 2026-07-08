@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -170,19 +170,19 @@ function aplicarStepsConformeModo(modo, tipoLote) {
     const tituloMap = { 'CPU': 'CPU', 'Monitor': 'Monitor', 'Telefone IP': 'Telefone IP', 'Notebook': 'Notebook', 'Impressora': 'Impressora' };
     const t = tituloMap[tipoLote] || tipoLote;
     WIZARD_STEPS = [
-      { key: 'lote_eq', titulo: t + ' (lote)', sub: 'Cadastre vários ' + t + 's em sequência. Toque "+ Adicionar outro" depois de salvar pra continuar no mesmo tipo.', cam: 'Tirar foto da etiqueta', tipoDefault: tipoLote, skippable: false },
+      { key: 'lote_eq', titulo: t + ' (vários do mesmo tipo)', sub: 'Cadastre vários ' + t + 's em sequência. Toque "+ Adicionar outro" depois de salvar pra continuar no mesmo tipo.', cam: 'Tirar foto da etiqueta', tipoDefault: tipoLote, skippable: false },
       { key: 'usuario', titulo: 'Usuário (opcional)', sub: 'Atribua um usuário comum a todos os ' + t + 's deste lote, ou pule.', cam: '', tipoDefault: '', skippable: true, skipLabel: 'Sem usuário' },
     ];
   } else if (modo === 'individual') {
     // Individual: 1 step livre (tipo editável) + usuário opcional
     WIZARD_STEPS = [
-      { key: 'individual_eq', titulo: 'Ativo (individual)', sub: 'Cadastre ativos diferentes um a um. Escolha o tipo, tire foto, salve. "+ Adicionar outro" pra cadastrar o próximo (qualquer tipo).', cam: 'Tirar foto da etiqueta', tipoDefault: '', skippable: false },
+      { key: 'individual_eq', titulo: 'Ativo avulso', sub: 'Cadastre ativos diferentes um a um. Escolha o tipo, tire foto, salve. "+ Adicionar outro" pra cadastrar o próximo (qualquer tipo).', cam: 'Tirar foto da etiqueta', tipoDefault: '', skippable: false },
       { key: 'usuario', titulo: 'Usuário (opcional)', sub: 'Atribua um usuário comum aos ativos cadastrados, ou pule.', cam: '', tipoDefault: '', skippable: true, skipLabel: 'Sem usuário' },
     ];
   } else if (modo === 'rapida') {
     // Rápida: 1 step só com patrimônio (auto-barcode + campo manual)
     WIZARD_STEPS = [
-      { key: 'rapida', titulo: 'Coleta Rápida', sub: 'Capture apenas o patrimônio para validação de presença física. Use o leitor de código de barras automático.', cam: '', tipoDefault: '', skippable: false },
+      { key: 'rapida', titulo: 'Contagem rápida', sub: 'Aponte o celular pro código de barras/QR. Cada leitura vira 1 ativo cadastrado. A câmera fica aberta continuamente.', cam: '', tipoDefault: '', skippable: false },
     ];
   } else {
     // Posto (padrão) — restaura fluxo completo
@@ -222,14 +222,110 @@ function mostrarModalModoInventario() {
   modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
 }
 
-// v1.4.0: inicia inventário no modo escolhido
+// v1.4.0 + v1.5.0: inicia inventário no modo escolhido
 function iniciarInventarioModo(modo, tipoLote) {
   STATE.modoInventario = modo || 'posto';
   STATE.tipoLote = tipoLote || null;
   aplicarStepsConformeModo(STATE.modoInventario, STATE.tipoLote);
   try { saveState(); } catch (e) {}
+  const labels = {posto:'🖥️ Posto de Trabalho', lote:'📦 Vários do mesmo tipo · ' + (tipoLote||''), individual:'🔀 Itens avulsos', rapida:'⚡ Contagem rápida'};
+  toast('Modo: ' + (labels[STATE.modoInventario] || 'Posto'), 2500);
+  // v1.5.0: modos LOTE e RÁPIDA abrem tela dedicada com câmera contínua
+  if (STATE.modoInventario === 'lote') { setTimeout(() => abrirLoteContinuo(tipoLote), 400); return; }
+  if (STATE.modoInventario === 'rapida') { setTimeout(() => abrirContagemRapida(), 400); return; }
   showScreen('screen-list');
-  toast('Modo: ' + ({posto:'🖥️ Posto de Trabalho', lote:'📦 Lote de ' + (tipoLote||''), individual:'🎯 Individual', rapida:'⚡ Coleta Rápida'}[STATE.modoInventario] || 'Posto'), 2500);
+}
+
+// ============================================================
+// v1.5.0: CADASTRO EM LOTE turbinado — pergunta padrões, abre câmera contínua
+// ============================================================
+async function abrirLoteContinuo(tipo) {
+  // Passo 1: pergunta padrões (marca/modelo/usuário)
+  const marca = prompt('📦 LOTE de ' + tipo + '\n\nMarca padrão (opcional, aplicada a todos):', '');
+  if (marca === null) { showScreen('screen-start'); return; } // cancelou
+  const modelo = prompt('Modelo padrão (opcional):', '');
+  if (modelo === null) { showScreen('screen-start'); return; }
+  const usuario = prompt('Usuário comum (opcional, ex.: "Estação compartilhada"):', 'Estação compartilhada');
+  if (usuario === null) { showScreen('screen-start'); return; }
+  STATE.loteConfig = { tipo: tipo, marca: (marca||'').trim(), modelo: (modelo||'').trim(), usuario: (usuario||'').trim() };
+  const sessionId = 'lote-' + uid();
+  let n = 0;
+  const lista = [];
+  showScreen('screen-list');
+  try { await openCustomCamera('lote_eq', {
+    mode: 'barcode',
+    continuous: true,
+    counterLabel: tipo + 's lidos',
+    onDetect: (raw) => {
+      const patrimonio = normalizarPatrimonio(raw);
+      const item = {
+        id: uid(),
+        sessionId: sessionId,
+        tipo: STATE.loteConfig.tipo,
+        marca: STATE.loteConfig.marca,
+        modelo: STATE.loteConfig.modelo,
+        patrimonio: patrimonio || raw,
+        serie: '',
+        usuario: STATE.loteConfig.usuario || '',
+        ramal: '',
+        obs: 'Cadastrado em lote'
+      };
+      STATE.items.push(item);
+      n++;
+      lista.unshift(patrimonio || raw);
+      if (lista.length > 3) lista.pop();
+      const numEl = document.getElementById('camCounterNum'); if (numEl) numEl.textContent = String(n);
+      const listEl = document.getElementById('camCounterList');
+      if (listEl) listEl.innerHTML = lista.map((p, i) => '<div class="cam-counter-list-item">' + (i === 0 ? '✓ ' : '· ') + p + '</div>').join('');
+      try { saveState && saveState(); } catch (e) {}
+    }
+  }); } catch (e) {}
+  // Ao fechar câmera, atualiza UI final
+  updateTopbar(); updateDashboard(); refreshList();
+  toast('✓ Lote encerrado: ' + n + ' ' + tipo + '(s) cadastrado(s).', 4500);
+}
+
+// ============================================================
+// v1.5.0: CONTAGEM RÁPIDA turbinada — câmera perene, só patrimônio, dedup
+// ============================================================
+async function abrirContagemRapida() {
+  const sessionId = 'rapida-' + uid();
+  let n = 0;
+  const lista = [];
+  showScreen('screen-list');
+  try { await openCustomCamera('rapida', {
+    mode: 'barcode',
+    continuous: true,
+    counterLabel: 'ativos coletados',
+    onDetect: (raw) => {
+      const patrimonio = normalizarPatrimonio(raw);
+      // Dedup em nível de STATE (evita duplicata caso timer tenha race)
+      const existe = STATE.items.find(i => i.patrimonio === (patrimonio || raw) && i.sessionId === sessionId);
+      if (existe) return;
+      const item = {
+        id: uid(),
+        sessionId: sessionId,
+        tipo: 'Outro',
+        marca: '',
+        modelo: '',
+        patrimonio: patrimonio || raw,
+        serie: '',
+        usuario: 'Contagem rápida',
+        ramal: '',
+        obs: 'Coleta de presença — ' + fmtDateBR(todayIso())
+      };
+      STATE.items.push(item);
+      n++;
+      lista.unshift(patrimonio || raw);
+      if (lista.length > 3) lista.pop();
+      const numEl = document.getElementById('camCounterNum'); if (numEl) numEl.textContent = String(n);
+      const listEl = document.getElementById('camCounterList');
+      if (listEl) listEl.innerHTML = lista.map((p, i) => '<div class="cam-counter-list-item">' + (i === 0 ? '✓ ' : '· ') + p + '</div>').join('');
+      try { saveState && saveState(); } catch (e) {}
+    }
+  }); } catch (e) {}
+  updateTopbar(); updateDashboard(); refreshList();
+  toast('⚡ Contagem encerrada: ' + n + ' ativo(s) coletado(s).', 4500);
 }
 
 const DB_NAME = 'inventario-ti';
@@ -1214,7 +1310,7 @@ function wizardRender() {
   const total = WIZARD_STEPS.length;
   const stepNum = STATE.wizardStep + 1;
   // v1.2.1: declarados no topo para evitar erro de TDZ (eram usados antes da declaração)
-  const isEquip = ['cpu', 'monitor1', 'monitor2', 'telefone'].includes(step.key);
+  const isEquip = ['cpu', 'monitor1', 'monitor2', 'telefone', 'lote_eq', 'individual_eq', 'rapida'].includes(step.key);
   const isRamal = step.key === 'ramal';
   const isUser = step.key === 'usuario';
 
@@ -1548,7 +1644,7 @@ function camSupportsGetUserMedia() {
 
 async function openCustomCamera(stepKey, opts) {
   opts = opts || {};
-  const mode = opts.mode || 'photo'; // 'photo' | 'barcode' | 'ia'
+  const mode = opts.mode || 'photo'; // 'photo' | 'barcode' | 'ia' | 'qr'
   if (!camSupportsGetUserMedia()) {
     return null;  // Fallback pro input file
   }
@@ -1559,15 +1655,18 @@ async function openCustomCamera(stepKey, opts) {
   CAM.active = true;
   CAM.mode = mode;
   CAM.modal.style.display = 'flex';
-  // v1.2.9: aplica classe do modo no modal pra estilizar overlays (linha vermelha barcode, tema IA)
-  CAM.modal.classList.remove('barcode-mode', 'ia-mode', 'photo-mode');
+  // v1.2.9 + v1.5.0: aplica classe do modo no modal (barcode, ia, qr, continuous)
+  CAM.modal.classList.remove('barcode-mode', 'ia-mode', 'photo-mode', 'qr-mode', 'continuous-mode');
+  if (opts.continuous) CAM.modal.classList.add('continuous-mode');
   CAM.modal.classList.add(mode + '-mode');
 
   // Ajusta texto guia conforme passo + modo
   const guideEl = document.querySelector('.cam-guide-label');
   if (guideEl) {
     if (mode === 'barcode') {
-      guideEl.textContent = 'Alinhe o código de barras na linha vermelha';
+      guideEl.textContent = opts.continuous ? '📦 Modo LOTE — aponte pros códigos em sequência' : 'Alinhe o código de barras na linha vermelha';
+    } else if (mode === 'qr') {
+      guideEl.textContent = opts.continuous ? '⚡ Contagem rápida — aponte pros QR codes' : 'Centralize o QR Code no quadro';
     } else if (mode === 'ia') {
       guideEl.textContent = '🤖 Modo IA — fotografe o equipamento (não a etiqueta)';
     } else {
@@ -1575,6 +1674,16 @@ async function openCustomCamera(stepKey, opts) {
         ? 'Centralize a tela do usuário aqui'
         : 'Centralize a etiqueta aqui';
     }
+  }
+  // v1.5.0: reset contador em modo contínuo
+  if (opts.continuous) {
+    const numEl = document.getElementById('camCounterNum');
+    const labEl = document.getElementById('camCounterLabel');
+    const listEl = document.getElementById('camCounterList');
+    if (numEl) numEl.textContent = '0';
+    if (labEl) labEl.textContent = opts.counterLabel || 'itens lidos';
+    if (listEl) listEl.innerHTML = '';
+    CAM._continuousList = [];
   }
 
   try {
@@ -1609,12 +1718,18 @@ async function openCustomCamera(stepKey, opts) {
     CAM.autoDetect = false;
 
     // v1.3.0 B: AUTO-LEITURA de código de barras estilo leitor de supermercado
-    if (mode === 'barcode' && ('BarcodeDetector' in window)) {
+    // v1.5.0: suporte a modo CONTÍNUO (para lote e contagem rápida) — câmera fica aberta, chama onDetect
+    const auto = (mode === 'barcode' || mode === 'qr');
+    if (auto && ('BarcodeDetector' in window)) {
       try {
         if (CAM.autoBarcodeTimer) { clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null; }
         const detector = new BarcodeDetector({ formats: ['code_128','ean_13','ean_8','code_39','qr_code','codabar','itf'] });
         const status = $('camDetectStatus');
-        if (status) { status.textContent = '👁 Mirando o código de barras...'; status.className = 'cam-detect-status show'; }
+        if (status) {
+          status.textContent = (mode === 'qr') ? '👁 Alinhe o QR Code no quadro' : '👁 Mirando o código de barras...';
+          status.className = 'cam-detect-status show';
+        }
+        CAM._lidosRecentes = new Map();
         CAM.autoBarcodeTimer = setInterval(async () => {
           if (!CAM.active) { clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null; return; }
           try {
@@ -1622,11 +1737,25 @@ async function openCustomCamera(stepKey, opts) {
             if (codes && codes.length > 0) {
               const raw = codes[0].rawValue || '';
               if (raw && raw.length >= 4) {
-                clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null;
-                if (status) { status.textContent = '✓ Código lido: ' + raw; status.className = 'cam-detect-status show ok'; }
-                try { navigator.vibrate && navigator.vibrate(80); } catch (e) {}
-                const resolveFn = CAM.resolve;
-                setTimeout(() => { closeCustomCamera(); if (resolveFn) resolveFn('auto:' + raw); }, 300);
+                if (opts.continuous) {
+                  // Modo CONTÍNUO: dedup pelos últimos 2.5s
+                  const agora = Date.now();
+                  const ultimo = CAM._lidosRecentes.get(raw) || 0;
+                  if (agora - ultimo < 2500) return;
+                  CAM._lidosRecentes.set(raw, agora);
+                  for (const [k, t] of CAM._lidosRecentes) if (agora - t > 15000) CAM._lidosRecentes.delete(k);
+                  if (status) { status.textContent = '✓ +1 (' + raw + ')'; status.className = 'cam-detect-status show ok'; }
+                  try { navigator.vibrate && navigator.vibrate(60); } catch (e) {}
+                  if (typeof opts.onDetect === 'function') {
+                    try { opts.onDetect(raw); } catch (e) { console.warn('onDetect erro:', e.message); }
+                  }
+                } else {
+                  clearInterval(CAM.autoBarcodeTimer); CAM.autoBarcodeTimer = null;
+                  if (status) { status.textContent = '✓ Código lido: ' + raw; status.className = 'cam-detect-status show ok'; }
+                  try { navigator.vibrate && navigator.vibrate(80); } catch (e) {}
+                  const resolveFn = CAM.resolve;
+                  setTimeout(() => { closeCustomCamera(); if (resolveFn) resolveFn('auto:' + raw); }, 300);
+                }
               }
             }
           } catch (e) {}
@@ -3197,6 +3326,47 @@ window.addEventListener('DOMContentLoaded', async () => {
     toast('Configuracao salva! Bem-vindo ao ' + emp + '.');
     showScreen('screen-start');
   };
+  // v1.5.0: menu hamburger lateral
+  if ($('menuBtn')) $('menuBtn').onclick = () => {
+    const m = document.getElementById('sideMenu');
+    if (m) m.classList.add('open');
+  };
+  const sideMenu = document.getElementById('sideMenu');
+  if (sideMenu) {
+    sideMenu.onclick = (e) => { if (e.target === sideMenu) sideMenu.classList.remove('open'); };
+    sideMenu.querySelectorAll('.side-menu-item').forEach(btn => {
+      btn.onclick = () => {
+        const acao = btn.dataset.menu;
+        sideMenu.classList.remove('open');
+        sideMenu.querySelectorAll('.side-menu-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (acao === 'home') showScreen('screen-start');
+        else if (acao === 'historico') { try { abrirHistoricoModal('sessoes'); } catch (e) { toast('Histórico indisponível.', 3000); } }
+        else if (acao === 'analise') { try { abrirDashboardAnalitico(); } catch (e) { toast('Análise indisponível.', 3000); } }
+        else if (acao === 'config') {
+          if ($('cfgEmpresa')) $('cfgEmpresa').value = APP_CONFIG.empresa.nome || '';
+          if ($('cfgTitulo')) $('cfgTitulo').value = APP_CONFIG.empresa.titulo || '';
+          if ($('cfgMarcas')) $('cfgMarcas').value = (APP_CONFIG.marcas || []).join(', ');
+          if ($('cfgPatRegex')) $('cfgPatRegex').value = (APP_CONFIG.patrimonio && APP_CONFIG.patrimonio.regex_padroes || []).join(' | ');
+          showScreen('screen-setup');
+        }
+        else if (acao === 'ajuda') {
+          try {
+            const t = 'OpenInvTI · Gestão de Ativos de TI\n\n' +
+              'Versão: v' + APP_VERSION + '\n' +
+              'Open-source · MIT\n' +
+              'github.com/jeansanabia-ai/OpenInvTI\n\n' +
+              'DÚVIDAS FREQUENTES:\n' +
+              '• Como usar Vários do mesmo tipo? → Configure marca/modelo padrão e leia códigos em sequência.\n' +
+              '• Como fazer contagem rápida? → Aponte pro código de barras/QR, câmera fica aberta.\n' +
+              '• Como ativar IA? → ⚙️ Configurações → Chave Groq (grátis em console.groq.com).\n';
+            alert(t);
+          } catch (e) {}
+        }
+      };
+    });
+  }
+
   // Botao Configuracoes no topbar abre a tela de setup
   if ($('settingsBtn')) $('settingsBtn').onclick = () => {
     if ($('cfgEmpresa')) $('cfgEmpresa').value = APP_CONFIG.empresa.nome || '';
