@@ -2,6 +2,77 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.5.1] - 2026-07-08 (PATCH — QR Code + wizard enxuto + relatório WhatsApp reformulado)
+
+### 📱 Botão QR Code no wizard (3º método de captura)
+Ao lado dos botões **Código de barras** e **Foto da etiqueta**, agora aparece o botão **📱 QR Code**. Abre a câmera em modo `qr` — com o **frame quadrado guia** já desenhado na v1.5.0, mesma câmera e detector do barcode (a API `BarcodeDetector` já suporta `qr_code`).
+
+Após ler, o app pergunta onde salvar o valor lido:
+- **OK** → preenche como **Patrimônio**
+- **Cancelar** → preenche como **Nº de Série**
+
+Se o QR contém URL, o app extrai automaticamente o último segmento do path (comum em etiquetas HP/Dell que codificam serial number numa URL).
+
+### 🎯 Wizard visualmente mais limpo
+- **3 botões compactos** (barcode / QR / foto) em linha, cada um com **1 linha só** (ícone + título + tag opcional)
+- **Removido o subtítulo redundante** (`wizStepSub`) que duplicava o título do passo
+- **Removido o hint gigante** embaixo dos botões (o guia já está no próprio botão)
+- **Cores por método** — azul-ciano (barcode) · roxo (QR) · verde-mint (foto)
+- Efeito de shine no hover em cada botão
+
+### 💬 Relatório WhatsApp reformulado (emojis universais + layout tabular)
+O relatório enviado pelo WhatsApp foi todo reformulado para:
+
+1. **Usar apenas emojis Unicode 6.0** (compatíveis com qualquer Android/WhatsApp, mesmo os mais antigos que renderizavam os emojis novos como `?`):
+   - `🖥️` → `💻` (CPU)
+   - `🖼️` → `📺` (Monitor)
+   - `🖨️` → `📠` (Impressora)
+   - `━━━━` → `─────` (separador ASCII compatível)
+2. **Alinhamento tabular** com setas `→` pra separar campo do valor
+3. **Blocos com título em MAIÚSCULAS** e delimitadores claros
+4. Novo formato:
+
+```
+📋 *INVENTÁRIO DE ATIVOS DE TI*
+─────────────────
+
+🏢 *Empresa* → Farmanguinhos
+📍 *Setor*   → Laboratório Controle de Qualidade
+📅 *Data*    → 07/07/2026
+👤 *Analista* → Jean Sanabia
+
+─────────────────
+📊 *RESUMO EXECUTIVO*
+─────────────────
+
+✅ Total de ativos          →  *36*
+🏭 Postos de trabalho       →  *12*
+👥 Usuários únicos          →  *1*
+🏷️ Ativos com patrimônio    →  *31* (86%)
+
+─────────────────
+💻 *ATIVOS POR TIPO*
+─────────────────
+
+💻 CPUs               →  *0*
+📺 Monitores          →  *36*
+📞 Telefones IP       →  *0*
+📓 Notebooks          →  *0*
+📠 Impressoras        →  *0*
+
+─────────────────
+
+📎 *Planilha completa em anexo (.xlsx)*
+_Contém detalhes de patrimônio, nº de série,
+observações e usuário de cada ativo._
+
+⚙️ _OpenInvTI v1.5.1 · Gestão de Ativos de TI_
+```
+
+### Mudado
+- Cache do SW: `openinvti-v1.5.1-prod`.
+- Subtítulo: `Gestão de Ativos de TI · v1.5.1`.
+
 ## [1.5.0] - 2026-07-08 (MINOR — fluxo em massa turbinado + menu lateral + QR Code)
 
 ### 🐛 BUG CRÍTICO CORRIGIDO — caixa de captura nos 3 modos novos

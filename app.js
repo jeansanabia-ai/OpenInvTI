@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -3045,7 +3045,7 @@ function abrirItensPorTipo(tipo) {
 
 // v1.0.8/v1.0.10: Monta um relatório formatado em texto e dispara WhatsApp + planilha
 function montarRelatorioTexto() {
-  // v1.4.0: formato executivo com separadores, métricas de qualidade e vocabulário "Ativos"
+  // v1.5.1: formato executivo com emojis UNIVERSAIS (Unicode 6.0) — funciona em qualquer WhatsApp
   const setor = STATE.setor || '(sem setor)';
   const data = fmtDateBR(STATE.data || todayIso());
   const empresa = (APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'Empresa';
@@ -3064,48 +3064,51 @@ function montarRelatorioTexto() {
     return p && !/^(SEM ETIQUETA|SN-|-+)$/i.test(p);
   }).length;
   const pctPat = total > 0 ? Math.round((comPat / total) * 100) : 0;
-  const SEP = '━━━━━━━━━━━━━━━━━━━━';
+  // v1.5.1: separador ASCII (compatível com toda fonte WhatsApp) + emojis Unicode 6.0
+  const SEP = '─────────────────';
   const linhas = [];
-  linhas.push('📋 *INVENTÁRIO DE TI*');
+  linhas.push('📋  *INVENTÁRIO DE ATIVOS DE TI*');
   linhas.push(SEP);
   linhas.push('');
-  linhas.push('🏢 *Empresa:* ' + empresa);
-  linhas.push('📍 *Setor:* ' + setor);
-  linhas.push('📅 *Data:* ' + data);
-  if (analista) linhas.push('👤 *Analista:* ' + analista);
+  linhas.push('🏢 *Empresa* → ' + empresa);
+  linhas.push('📍 *Setor* → ' + setor);
+  linhas.push('📅 *Data* → ' + data);
+  if (analista) linhas.push('👤 *Analista* → ' + analista);
   linhas.push('');
   linhas.push(SEP);
-  linhas.push('📦 *Resumo executivo*');
+  linhas.push('📊 *RESUMO EXECUTIVO*');
+  linhas.push(SEP);
   linhas.push('');
-  linhas.push('✅ *' + total + '* ativos registrados');
-  linhas.push('🖥️ *' + sessoesUnicas + '* posto(s) de trabalho cadastrado(s)');
-  linhas.push('👥 *' + usuariosUnicos + '* usuário(s) identificado(s)');
-  linhas.push('🏷️ *' + comPat + '* com patrimônio (' + pctPat + '%)');
+  linhas.push('✅ Total de ativos          →  *' + total + '*');
+  linhas.push('🏭 Postos de trabalho       →  *' + sessoesUnicas + '*');
+  linhas.push('👥 Usuários únicos          →  *' + usuariosUnicos + '*');
+  linhas.push('🏷️ Ativos com patrimônio    →  *' + comPat + '* (' + pctPat + '%)');
   linhas.push('');
   linhas.push(SEP);
-  linhas.push('💻 *Ativos por tipo*');
+  linhas.push('💻 *ATIVOS POR TIPO*');
+  linhas.push(SEP);
   linhas.push('');
-  // Lista ordenada com alinhamento por pontos (visual mais limpo no WhatsApp)
-  const fmtTipo = (nome, emoji) => {
+  // Alinhamento tabular com emojis universais (Unicode 6.0) e nomes claros
+  const fmtTipo = (nome, emoji, label) => {
     const n = porTipo[nome] || 0;
-    const pad = (nome + ' ').padEnd(18, '.');
-    return emoji + ' ' + pad + ' ' + n;
+    const pad = (label || nome).padEnd(18, ' ');
+    return emoji + '  ' + pad + '→  *' + n + '*';
   };
-  linhas.push(fmtTipo('CPU', '🖥️'));
-  linhas.push(fmtTipo('Monitor', '🖼️'));
-  linhas.push(fmtTipo('Telefone IP', '📞'));
-  linhas.push(fmtTipo('Notebook', '💻'));
-  linhas.push(fmtTipo('Impressora', '🖨️'));
+  linhas.push(fmtTipo('CPU', '💻', 'CPUs'));
+  linhas.push(fmtTipo('Monitor', '📺', 'Monitores'));
+  linhas.push(fmtTipo('Telefone IP', '📞', 'Telefones IP'));
+  linhas.push(fmtTipo('Notebook', '📓', 'Notebooks'));
+  linhas.push(fmtTipo('Impressora', '📠', 'Impressoras'));
   // Outros tipos não-padrão
   const padrao = new Set(['CPU','Monitor','Telefone IP','Notebook','Impressora']);
   for (const t in porTipo) {
-    if (!padrao.has(t)) linhas.push(fmtTipo(t, '📦'));
+    if (!padrao.has(t)) linhas.push(fmtTipo(t, '📦', t));
   }
   linhas.push('');
   linhas.push(SEP);
   linhas.push('');
-  linhas.push('📊 Planilha completa em anexo (.xlsx)');
-  linhas.push('_Detalhes de patrimônio, série, observações e usuário de cada ativo._');
+  linhas.push('📎 *Planilha completa em anexo (.xlsx)*');
+  linhas.push('_Contém detalhes de patrimônio, nº de série, observações e usuário de cada ativo._');
   linhas.push('');
   linhas.push('⚙️ _OpenInvTI v' + APP_VERSION + ' · ' + APP_TAGLINE + '_');
   return linhas.join('\n');
@@ -3520,6 +3523,34 @@ window.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => { $('wPatrimonio').style.background = ''; }, 1500);
       }
     } catch (e) { toast('Erro ao ler código: ' + (e.message || e), 4000); }
+  };
+  // v1.5.1: botão QR Code — abre câmera em modo qr (frame quadrado guia)
+  if ($('wizQR')) $('wizQR').onclick = async () => {
+    try {
+      let result = null;
+      try { result = await openCustomCamera('qr', { mode: 'qr' }); } catch (e) { result = null; }
+      if (typeof result === 'string' && result.indexOf('auto:') === 0) {
+        const raw = result.substring(5);
+        // QR pode conter URL ou serial. Se for URL, extrai texto de identificação.
+        let valorFinal = raw;
+        try {
+          const u = new URL(raw);
+          // Se é URL, tenta pegar último segmento do path OU um parâmetro relevante
+          const segs = (u.pathname || '').split('/').filter(Boolean);
+          if (segs.length > 0) valorFinal = segs[segs.length - 1];
+        } catch (e) { /* não é URL, usa raw */ }
+        const norm = normalizarPatrimonio(valorFinal);
+        // QR frequentemente contém serial → pergunta onde salvar
+        const escolha = confirm('QR Code lido: ' + valorFinal + '\n\nOK = Preencher como PATRIMÔNIO\nCancelar = Preencher como Nº DE SÉRIE');
+        const campo = escolha ? 'wPatrimonio' : 'wSerie';
+        if ($(campo)) {
+          $(campo).value = norm || valorFinal;
+          $(campo).style.transition = 'background 0.3s';
+          $(campo).style.background = 'rgba(168, 85, 247, 0.18)';
+          setTimeout(() => { $(campo).style.background = ''; }, 1600);
+        }
+      }
+    } catch (e) { toast('Erro ao ler QR: ' + (e.message || e), 4000); }
   };
   // v1.3.0 A1: botão "🔲" do nº de série — usa mesma câmera barcode, preenche o campo Série
   if ($('wizBarcodeSerie')) $('wizBarcodeSerie').onclick = async () => {
@@ -4243,24 +4274,20 @@ function extrairCandidatosPadrao(text) {
   }
   const linhas = text.split(/\r?\n/);
   for (const linha of linhas) {
-    // Padrão LETRAS-NUMEROS (ex.: ACME-12345, INV-2024-0123)
     const m1 = linha.match(/\b([A-Z]{2,5})[-_\.\s]?(\d{3,8})\b/);
     if (m1) {
       const prefix = m1[1];
       const numLen = m1[2].length;
       add('^' + prefix + '-?\\d{' + numLen + '}$', prefix + '-' + m1[2], prefix + ' + ' + numLen + ' digitos');
     }
-    // Padrão LETRAS-LETRAS-NUMEROS (ex.: ABC-CORP-12345)
     const m2 = linha.match(/\b([A-Z])[-_\.\s]([A-Z]{2,5})[-_\.\s](\d{3,8})\b/);
     if (m2) {
       add('^' + m2[1] + '-' + m2[2] + '-\\d{' + m2[3].length + '}$', m2[1] + '-' + m2[2] + '-' + m2[3], 'Prefixo composto + ' + m2[3].length + ' digitos');
     }
-      // Padrão só números (6-10 digitos)
     const m3 = linha.match(/\b(\d{6,10})\b/);
     if (m3) {
       add('^\\d{' + m3[1].length + '}$', m3[1], 'Apenas ' + m3[1].length + ' digitos');
     }
-    // Padrão alfanumérico misturado (ex.: A1B2C3)
     const m4 = linha.match(/\b([A-Z][A-Z0-9]{4,10}[0-9])\b/);
     if (m4 && !/^[A-Z]+$/.test(m4[1]) && !/^[0-9]+$/.test(m4[1])) {
       add('^[A-Z][A-Z0-9]{' + (m4[1].length - 2) + '}[0-9]$', m4[1], 'Alfanumerico ' + m4[1].length + ' caracteres');
@@ -4269,18 +4296,26 @@ function extrairCandidatosPadrao(text) {
   return cands.slice(0, 5);
 }
 
-// v1.2.0: Atalhos de teclado (Enter avança, Esc cancela, Ctrl+S salva)
 window.addEventListener('keydown', (e) => {
   if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
   if (e.key === 'Enter' && document.querySelector('#screen-wizard.active')) {
+    e.preventDefault();
     const btn = document.getElementById('wizNext');
     if (btn) btn.click();
   }
   if (e.key === 'Escape') {
-    const modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal');
+    const modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal') || document.getElementById('iaSuggestModal');
     if (modal) modal.remove();
   }
   if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    if (typeof saveState === 'function') saveState();
+    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('💾 Salvo (manual)', 'ok');
+  }
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (STATE.items && STATE.items.length > 0) {
     e.preventDefault();
     e.returnValue = '';
   }

@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.5.0</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.5.1</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -216,26 +216,29 @@
       </div>
 
       <h2 class="wizard-step-title" id="wizStepTitle">Ativo principal</h2>
-      <div class="wizard-step-sub" id="wizStepSub">Tire foto da etiqueta com nº de patrimônio</div>
+      <div class="wizard-step-sub" id="wizStepSub" style="display:none"></div>
 
-      <!-- Foto e OCR (compartilhado entre passos) -->
+      <!-- v1.5.1: wizard enxuto — 3 métodos de captura em botões compactos -->
       <div class="photo-section" id="wizPhotoBox">
         <img class="photo-preview" id="wizPhoto" alt="Foto" />
-        <!-- v1.2.3: método PRINCIPAL — código de barras (disparo manual) -->
-        <button type="button" class="barcode-cta" id="wizBarcode" title="Ler o código de barras da etiqueta">
-          <span class="cap-line-main">🔲 Ler código de barras <span class="barcode-cta-tag">recomendado</span></span>
-          <span class="cap-line-hint">Mais rápido e exato quando a etiqueta tem código de barras impresso</span>
+        <button type="button" class="cap-mini cap-mini-barcode" id="wizBarcode" title="Auto-leitura por câmera">
+          <span class="cap-mini-icon">🔲</span>
+          <span class="cap-mini-text">Código de barras</span>
+          <span class="cap-mini-tag">RECOMENDADO</span>
         </button>
-        <label class="cap-btn cap-btn-alt">
-          <span class="cap-line-main">📷 <span id="wizCamLabel">Tirar foto da etiqueta</span></span>
-          <span class="cap-line-hint">Foto da etiqueta — IA lê e preenche tipo, marca, modelo, patrimônio e nº de série</span>
+        <button type="button" class="cap-mini cap-mini-qr" id="wizQR" title="Ler QR Code">
+          <span class="cap-mini-icon">📱</span>
+          <span class="cap-mini-text">QR Code</span>
+        </button>
+        <label class="cap-mini cap-mini-photo">
+          <span class="cap-mini-icon">📷</span>
+          <span class="cap-mini-text" id="wizCamLabel">Foto da etiqueta</span>
+          <span class="cap-mini-tag cap-mini-tag-ai">IA</span>
           <input type="file" accept="image/*" capture="environment" id="wizInput" />
         </label>
-        <!-- v1.4.0: botão "IA identifica" removido. Assistente IA continua rodando automaticamente
-             dentro do fluxo "Tirar foto da etiqueta" (vision + OCR em paralelo). -->
         <div class="ocr-progress" id="wizProg"><div class="bar"></div></div>
         <div class="photo-status" id="wizStatus"></div>
-        <div class="hint" id="wizHint" style="margin-top:10px;font-size:12px;color:#555;line-height:1.5;text-align:left"></div>
+        <div class="hint" id="wizHint" style="display:none"></div>
       </div>
 
       <!-- Campos do equipamento (passos 1-4) -->
@@ -498,7 +501,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.5.0</p>
+          <p>Gestão de Ativos de TI · v1.5.1</p>
         </div>
       </div>
       <div class="side-menu-list">
@@ -540,3 +543,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+                                                                                                                                                                                                                        
