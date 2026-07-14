@@ -2,6 +2,62 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.6.0] - 2026-07-14 (MINOR — fluxo em cadeia + share unificado + fixes críticos)
+
+Release grande focada em **produtividade em campo** (menos cliques entre setores) e **correção de 3 bugs críticos** reportados por uso real.
+
+### 🐛 Fixes críticos
+
+- **#01 PDF quebrado** (`doc.autoTable is not a function`) — o `jspdf-autotable` 3.5+ mudou a API. Agora o app detecta as duas versões (`window.autoTable(doc, opts)` ou `doc.autoTable(opts)`) e usa a que estiver disponível. CDN adicionado no HTML.
+- **#11 IA foto não preenchia campos** — a condição usava `groqKey` diretamente, ignorando quem usa o proxy Cloudflare. Trocado por `iaDisponivel()`.
+- **#10 "Sem monitor" pulava só 1 passo** — agora pula 2 (Monitor1 + Monitor2), indo direto pra Telefone.
+
+### 🏢 Card "Setores" clicável no dashboard (#02)
+
+Novo 4º card no dashboard: **Setores** — mostra a contagem de setores únicos inventariados (atuais + arquivados) e, ao clicar, abre modal com detalhamento de quantos inventários e quantos ativos por setor.
+
+### ✏️ Editar cabeçalho do inventário em qualquer momento (#03)
+
+Novo botão de lápis (✏️) no header da tela de lista. Abre modal onde o usuário pode alterar **título + setor + analista** de uma vez, sem sair do inventário. Um preview compacto do cabeçalho aparece na tela de lista.
+
+### 📤 Compartilhamento unificado + fluxo em cadeia (#05, #07, e Jean's suggestion)
+
+A tela final foi reformulada:
+- **Compartilhar**: 3 botões grandes lado a lado (WhatsApp, Excel, PDF) com cores identificáveis
+- **E agora?**: 3 cards de próximo passo:
+  1. **Continuar em outro setor** — digita o próximo setor e o app arquiva o atual + inicia novo (mantém analista e template do título, data = hoje)
+  2. **Novo inventário completo** — arquiva e volta pra tela inicial
+  3. **Só arquivar** — arquiva e volta ao menu
+
+O campo do próximo setor tem autocomplete e mostra um badge "ℹ️ Setor já inventariado 2x · última visita: 05/07" se já foi visitado. Confirma se já foi inventariado no mesmo dia.
+
+Isso mata os 3-4 cliques de fricção entre setores em varredura de prédio inteiro.
+
+### 📦 Arquivar direto do dashboard (#06)
+
+Botão "Arquivar e iniciar novo" aparece no dashboard quando há inventário em andamento (só nesse caso).
+
+### 👥 Remover "Sem usuário fixo" (#04)
+
+Unificado com "Estação compartilhada" (mesmo conceito, gerava dúvida).
+
+### 📱 Compartilhar direto nos inventários arquivados (#14)
+
+Cada inventário arquivado agora tem **3 mini-botões** (💬 📊 📄) direto no card, sem precisar entrar. Faz swap temporário do STATE, regenera o artefato e restaura.
+
+### 🎨 Polish visual (#08)
+
+- Título do topbar (`h1`) com ellipsis de 2 linhas (não estica infinito com títulos longos)
+- Card de sessão com `-webkit-line-clamp: 2` no nome do usuário
+
+### 💾 Retomar inventário garantido (#12)
+
+Agora o STATE é restaurado **automaticamente no boot** (não só ao clicar Retomar). Botão Retomar continua visível, mas agora mostra a contagem: "Retomar inventário (12 ativos salvos)".
+
+### 🧠 Autocomplete que aprende em runtime (#13)
+
+`popularSugestoesHistoricas()` é chamado **a cada `saveState()`**, ou seja: cada novo item cadastrado já vira sugestão pros próximos campos.
+
 ## [1.5.3] - 2026-07-08 (PATCH — autocomplete geral + emoji seguro no título)
 
 ### 🔄 Autocomplete de TODOS os campos com valores já usados

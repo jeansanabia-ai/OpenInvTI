@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.5.3';
+const APP_VERSION = '1.6.0';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -354,6 +354,8 @@ async function saveState() {
     tx.objectStore(DB_STORE).put({ ...STATE }, 'state');
     await new Promise((r, e) => { tx.oncomplete = r; tx.onerror = () => e(tx.error); });
   } catch (err) { console.warn('Falha ao salvar', err); }
+  // v1.6.0 #13: autocomplete aprende em runtime — re-popula sugestões a cada save
+  try { if (typeof popularSugestoesHistoricas === 'function') popularSugestoesHistoricas(); } catch (e) {}
 }
 async function loadState() {
   try {
@@ -409,16 +411,17 @@ function updateDashboard() {
   const dashSes = document.getElementById('dashSessoes');
   const dashItn = document.getElementById('dashItens');
   const dashUsr = document.getElementById('dashUsuarios');
+  const dashSet = document.getElementById('dashSetores'); // v1.6.0 #02: novo card
   if (!dashSes && !dashItn && !dashUsr) return;
-  // Conta sessoes/usuarios do inventario ATUAL em andamento
   const sessoes = new Set();
   const usuarios = new Set();
+  const setores = new Set(); // v1.6.0 #02
   for (const it of (STATE.items || [])) {
     if (it.sessionId) sessoes.add(it.sessionId);
     else sessoes.add('legacy-' + (it.usuario || ''));
     if (it.usuario) usuarios.add(it.usuario);
   }
-  // Soma com o historico de inventarios JA FINALIZADOS
+  if (STATE.setor) setores.add(STATE.setor);
   let totSessoes = sessoes.size;
   let totItens = (STATE.items || []).length;
   let totUsuarios = usuarios.size;
@@ -426,24 +429,28 @@ function updateDashboard() {
   for (const h of (STATE.historicoSessoes || [])) {
     totSessoes += (h.totalSessoes || 0);
     totItens += (h.totalItens || 0);
-    if (Array.isArray(h.usuarios)) {
-      for (const u of h.usuarios) usuariosUnicos.add(u);
-    }
+    if (Array.isArray(h.usuarios)) for (const u of h.usuarios) usuariosUnicos.add(u);
+    if (h.setor) setores.add(h.setor);
   }
   totUsuarios = usuariosUnicos.size;
   if (dashSes) dashSes.textContent = totSessoes;
   if (dashItn) dashItn.textContent = totItens;
   if (dashUsr) dashUsr.textContent = totUsuarios;
-  // v1.0.8: Cards clicáveis com navegação para histórico
+  if (dashSet) dashSet.textContent = setores.size; // v1.6.0 #02
+  // v1.6.0 #06: botão "Arquivar" no dashboard só aparece se há inventário em andamento
+  const btnArqDash = document.getElementById('btnArquivarDash');
+  if (btnArqDash) btnArqDash.style.display = ((STATE.items || []).length > 0) ? 'block' : 'none';
+  // v1.6.0 #02: cards clicáveis usando data-dash (mais robusto que indice)
   const cards = document.querySelectorAll('#screen-start .dash-card');
-  const tipos = ['sessoes', 'itens', 'usuarios'];
-  cards.forEach((card, i) => {
+  const mapAcao = { postos: 'sessoes', itens: 'itens', usuarios: 'usuarios', setores: 'setores' };
+  cards.forEach((card) => {
     if (!card.classList.contains('clickable')) {
       card.classList.add('clickable');
       card.setAttribute('role', 'button');
       card.setAttribute('tabindex', '0');
-      card.addEventListener('click', () => abrirHistoricoModal(tipos[i]));
-      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirHistoricoModal(tipos[i]); } });
+      const acao = mapAcao[card.dataset.dash] || 'sessoes';
+      card.addEventListener('click', () => abrirHistoricoModal(acao));
+      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirHistoricoModal(acao); } });
     }
   });
 }
@@ -549,6 +556,37 @@ function abrirInventarioArquivado(id) {
       finally { Object.assign(STATE, BAK); }
     });
   });
+}
+
+// v1.6.0 #14: compartilha um inventario arquivado DIRETO (sem abrir o modal detalhe)
+async function compartilharInventarioArquivado(archId, acao) {
+  const historico = STATE.historicoSessoes || [];
+  const inv = historico.find(h => h.id === archId);
+  if (!inv) { toast('Inventário arquivado não encontrado.', 3000); return; }
+  const items = Array.isArray(inv.items) ? inv.items : [];
+  if (items.length === 0) {
+    toast('Inventário arquivado sem detalhes salvos (versão antiga).', 4000);
+    return;
+  }
+  const BAK = {
+    data: STATE.data, setor: STATE.setor, titulo: STATE.titulo,
+    analista: STATE.analista, items: STATE.items,
+  };
+  try {
+    STATE.data = inv.data; STATE.setor = inv.setor; STATE.titulo = inv.titulo;
+    STATE.analista = inv.analista || ''; STATE.items = inv.items.slice();
+    if (acao === 'xls') {
+      await gerarPlanilha();
+      toast('✓ Planilha regerada (Downloads)', 3500);
+    } else if (acao === 'pdf') {
+      if (typeof gerarPDF === 'function') { await gerarPDF(); toast('✓ PDF regerado (Downloads)', 3500); }
+      else if ($('btnPdf')) { $('btnPdf').click(); }
+    } else if (acao === 'wa') {
+      await enviarRelatorioWhatsApp();
+    }
+  } finally {
+    Object.assign(STATE, BAK);
+  }
 }
 
 function updateTopbar() {
@@ -658,7 +696,7 @@ function abrirHistoricoModal(tipo) {
       )).join(''));
     }
     if (historico.length > 0) {
-      partes.push('<div style="font-size:12px;color:#34D399;font-weight:700;margin:14px 0 6px">▸ Inventários arquivados (toque pra ver dispositivos)</div>');
+      partes.push('<div style="font-size:12px;color:#34D399;font-weight:700;margin:14px 0 6px">▸ Inventários arquivados (toque pra ver ou compartilhar)</div>');
       partes.push(historico.map((h) => (
         '<div class="hm-item hm-item-archived" data-arch-id="' + (h.id || '') + '" style="cursor:pointer">' +
         '<div class="hm-item-body"><strong>' + (h.setor || '(sem setor)') + '</strong>' +
@@ -667,7 +705,14 @@ function abrirHistoricoModal(tipo) {
           (h.totalSessoes || 0) + ' sessão(ões) · ' +
           (h.totalItens || 0) + ' item(ns) · ' +
           (h.totalUsuarios || 0) + ' usuário(s)' +
-        '</div></div>' +
+        '</div>' +
+        // v1.6.0 #14: mini-botões de share direto no card arquivado
+        '<div class="hm-quick-actions" data-arch-id="' + (h.id || '') + '">' +
+          '<button type="button" class="hm-quick-btn hm-quick-wa" data-quick="wa" data-arch-id="' + (h.id || '') + '" title="Enviar pelo WhatsApp">💬</button>' +
+          '<button type="button" class="hm-quick-btn hm-quick-xls" data-quick="xls" data-arch-id="' + (h.id || '') + '" title="Baixar Excel">📊</button>' +
+          '<button type="button" class="hm-quick-btn hm-quick-pdf" data-quick="pdf" data-arch-id="' + (h.id || '') + '" title="Baixar PDF">📄</button>' +
+        '</div>' +
+        '</div>' +
         '<button type="button" class="hm-item-edit" style="background:rgba(52,211,153,0.14);color:#34D399;border-color:rgba(52,211,153,0.32);" title="Ver dispositivos">👁</button>' +
         '</div>'
       )).join(''));
@@ -708,6 +753,41 @@ function abrirHistoricoModal(tipo) {
             (tipos.size > 0 ? ' · ' + Array.from(tipos).join(', ') : '') +
           '</div></div>';
       }).join('');
+    }
+  } else if (tipo === 'setores') {
+    // v1.6.0 #02: Setores inventariados (atuais + arquivados)
+    titulo = 'Setores inventariados';
+    icone = '🏢';
+    const setoresMap = new Map();
+    if (STATE.setor) {
+      const key = STATE.setor;
+      if (!setoresMap.has(key)) setoresMap.set(key, { nome: key, atual: 0, arquivados: [] });
+      setoresMap.get(key).atual = itensAtuais.length;
+    }
+    for (const h of historico) {
+      if (!h.setor) continue;
+      if (!setoresMap.has(h.setor)) setoresMap.set(h.setor, { nome: h.setor, atual: 0, arquivados: [] });
+      setoresMap.get(h.setor).arquivados.push({ id: h.id, data: h.data, itens: h.totalItens || 0 });
+    }
+    if (setoresMap.size === 0) {
+      conteudo = '<div class="hm-empty">Nenhum setor inventariado ainda.</div>';
+    } else {
+      const partes = [];
+      Array.from(setoresMap.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).forEach((s, i) => {
+        const totItens = s.atual + s.arquivados.reduce((acc, a) => acc + a.itens, 0);
+        const totInv = (s.atual > 0 ? 1 : 0) + s.arquivados.length;
+        partes.push(
+          '<div class="hm-item">' +
+            '<div class="hm-item-body">' +
+              '<strong>' + (i+1) + '. ' + s.nome + '</strong>' +
+              '<div class="hm-sub">' + totInv + ' inventário(s) · ' + totItens + ' ativo(s) total' +
+                (s.atual > 0 ? ' <span style="color:#67E8F9">· em andamento</span>' : '') +
+              '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      });
+      conteudo = partes.join('');
     }
   }
 
@@ -751,9 +831,31 @@ function abrirHistoricoModal(tipo) {
   // v1.1.0: clicar no item arquivado inteiro
   overlay.querySelectorAll('.hm-item-archived').forEach((el) => {
     el.addEventListener('click', (e) => {
+      // v1.6.0 #14: se clicou nos mini-botões de share, não abre o inventário
+      if (e.target.closest('.hm-quick-btn')) return;
       e.stopPropagation();
       const id = el.dataset.archId;
       if (id) abrirInventarioArquivado(id);
+    });
+  });
+  // v1.6.0 #14: mini-botões de share direto (WhatsApp, Excel, PDF) nos arquivados
+  overlay.querySelectorAll('.hm-quick-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const acao = btn.dataset.quick;
+      const archId = btn.dataset.archId;
+      if (!archId) return;
+      const orig = btn.textContent;
+      btn.textContent = '…';
+      btn.disabled = true;
+      try {
+        await compartilharInventarioArquivado(archId, acao);
+      } catch (err) {
+        console.error(err);
+        toast('Erro: ' + (err.message || err), 3500);
+      }
+      btn.textContent = orig;
+      btn.disabled = false;
     });
   });
 }
@@ -1217,6 +1319,7 @@ function normalizeNameCase(s) {
 function refreshList() {
   const list = $('itemList');
   const empty = $('emptyMsg');
+  atualizarPreviewCabecalho();
   list.innerHTML = '';
   if (STATE.items.length === 0) {
     empty.style.display = 'block';
@@ -1532,8 +1635,14 @@ function wizardSkip() {
     STATE.wizardRamal = '';
   }
 
-  // Se pulou Telefone IP, pula tambem Ramal automaticamente (nao faz sentido)
+  // v1.6.0 #10: Se pulou "Sem monitor" no passo Monitor 1, pula direto pra Telefone IP
+  // (Monitor 2 nem faz sentido perguntar quando o user já disse que não tem monitor)
   let pulos = 1;
+  if (step.key === 'monitor1') {
+    STATE.wizardItems[2] = null; // limpa Monitor 2 preventivamente
+    pulos = 2;
+  }
+  // Se pulou Telefone IP, pula tambem Ramal automaticamente (nao faz sentido)
   if (step.key === 'telefone') {
     STATE.wizardRamal = '';
     pulos = 2;
@@ -3006,7 +3115,7 @@ function popularUsuariosDatalist() {
   for (const h of (STATE.historicoSessoes || [])) {
     if (Array.isArray(h.usuarios)) h.usuarios.forEach(u => usuariosUsados.add(u));
   }
-  ['Estação compartilhada', 'Sem usuário fixo', 'Multiusuário'].forEach(u => usuariosUsados.add(u));
+  ['Estação compartilhada'].forEach(u => usuariosUsados.add(u));
   dl.innerHTML = Array.from(usuariosUsados).sort().map(n => '<option value="' + n.replace(/"/g, '&quot;') + '"></option>').join('');
 }
 function inicializarChipsUsuario() {
@@ -3089,9 +3198,25 @@ function abrirItensPorTipo(tipo) {
   // v1.1.0: clicar no item arquivado inteiro
   overlay.querySelectorAll('.hm-item-archived').forEach((el) => {
     el.addEventListener('click', (e) => {
+      if (e.target.closest('.hm-quick-btn')) return;
       e.stopPropagation();
       const id = el.dataset.archId;
       if (id) abrirInventarioArquivado(id);
+    });
+  });
+  overlay.querySelectorAll('.hm-quick-btn').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const acao = btn.dataset.quick;
+      const archId = btn.dataset.archId;
+      if (!archId) return;
+      const orig = btn.textContent;
+      btn.textContent = '…';
+      btn.disabled = true;
+      try { await compartilharInventarioArquivado(archId, acao); }
+      catch (err) { console.error(err); toast('Erro: ' + (err.message || err), 3500); }
+      btn.textContent = orig;
+      btn.disabled = false;
     });
   });
 }
@@ -3465,17 +3590,25 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (saved && Array.isArray(saved.historicoSessoes)) {
     STATE.historicoSessoes = saved.historicoSessoes;
   }
+  // v1.6.0 #12: se há inventário salvo, RESTAURA STATE completo (não só ao clicar Retomar)
+  // Isso garante que o usuário nunca perca dados por fechar/reabrir o app.
   if (saved && saved.items && saved.items.length > 0) {
-    $('btnResume').style.display = 'flex';
-    $('btnResume').onclick = () => {
-      Object.assign(STATE, saved);
-      $('dataInv').value = STATE.data;
-      $('setorInv').value = STATE.setor;
-      $('tituloInv').value = STATE.titulo || '';
-      updateTopbar(); updateDashboard();
-      refreshList();
-      showScreen('screen-list');
-    };
+    // Restaura STATE já no boot pra que updateDashboard/updateTopbar reflitam o inventário atual
+    Object.assign(STATE, saved);
+    if ($('dataInv')) $('dataInv').value = STATE.data || todayIso();
+    if ($('setorInv')) $('setorInv').value = STATE.setor || '';
+    if ($('tituloInv')) $('tituloInv').value = STATE.titulo || '';
+    if ($('analistaInv')) $('analistaInv').value = STATE.analista || '';
+    // Botão "Retomar" fica visível como atalho pra tela de lista
+    if ($('btnResume')) {
+      $('btnResume').style.display = 'flex';
+      $('btnResume').textContent = '↻ Retomar inventário (' + STATE.items.length + ' ativo(s) salvos)';
+      $('btnResume').onclick = () => {
+        updateTopbar(); updateDashboard();
+        refreshList();
+        showScreen('screen-list');
+      };
+    }
   }
   // Renderiza dashboard com historico carregado (mesmo sem inventario atual)
   updateDashboard();
@@ -3533,6 +3666,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
   // v1.0.10: botão Voltar na tela de lista — volta pro dashboard inicial
   if ($('listBack')) $('listBack').onclick = () => showScreen('screen-start');
+  // v1.6.0 #03: botão editar cabeçalho (título + setor + analista)
+  if ($('btnEditarCabecalho')) $('btnEditarCabecalho').onclick = abrirModalEditarCabecalho;
   // v1.0.10: chips rápidos da tela de usuário
   if ($('wizFieldsUser')) {
     $('wizFieldsUser').querySelectorAll('.user-chip').forEach((btn) => {
@@ -3776,12 +3911,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
       } else {
         // v1.0.8 + v1.2.3: Extração híbrida — IA Groq (texto OCR + Vision na foto) em paralelo
-        const groqKey = (APP_CONFIG.ai && APP_CONFIG.ai.groq_key) || '';
+        // v1.6.0 BUG FIX #11: usa iaDisponivel() em vez de groqKey pra reconhecer o proxy Cloudflare
+        // (antes só rodava quando o user configurava chave manual; usuários do proxy nunca viam IA rodar)
         const extracted = parseLabel(text);
         let iaDados = null;
         let iaVision = null;
         let iaUsada = false;
-        if (groqKey && (text || file)) {
+        if (iaDisponivel() && (text || file)) {
           try {
             status.innerHTML = '🤖 Assistente IA analisando foto + texto…';
             const tipoCtx = ($('wTipo') && $('wTipo').value) || null;
@@ -3982,29 +4118,126 @@ window.addEventListener('DOMContentLoaded', async () => {
     $('btnGen').textContent = '📊 Gerar planilha .xlsx';
   };
 
-  $('btnNew').onclick = async () => {
+  // v1.6.0 #05+07: Novo fluxo — 3 opções (continuar em outro setor / novo inventário / só arquivar)
+  async function confirmarArquivamento() {
     const planilhaGerada = !!(window._lastPlanilhaBuf || window._lastPlanilhaBlob);
     const totalItens = STATE.items ? STATE.items.length : 0;
     if (!planilhaGerada && totalItens > 0) {
-      const msg = '⚠️ ATENÇÃO!\n\nVocê NÃO gerou a planilha .xlsx ainda.\n\nItens: ' + totalItens + '\nSetor: ' + (STATE.setor || '-') + '\n\nSe arquivar agora SEM planilha, você corre risco de perder dados.\n\nRecomendado:\n1) CANCELAR\n2) Tocar em "📊 Gerar planilha"\n3) Aí sim arquivar\n\nArquivar mesmo assim? (não recomendado)';
-      if (!confirm(msg)) return;
-    } else {
-      if (!confirm('Arquivar este inventário?\n\nFica salvo no card "📦 Sessões" com TODOS os dispositivos. Você pode regerar planilha/PDF ou editar depois.')) return;
+      const msg = 'ATENCAO!\n\nVoce NAO gerou a planilha .xlsx ainda.\n\nItens: ' + totalItens + '\nSetor: ' + (STATE.setor || '-') + '\n\nSe arquivar agora SEM planilha, corre risco de perder dados.\n\nRecomendado:\n1) CANCELAR\n2) Tocar em "Planilha" acima\n3) Depois escolher o proximo passo\n\nArquivar mesmo assim?';
+      return confirm(msg);
     }
-    // BUG #1 FIX: Arquiva o inventario atual no historico antes de limpar
+    return true;
+  }
+
+  async function arquivarELimparEstado() {
     arquivarInventarioAtual();
     STATE.data = ''; STATE.setor = ''; STATE.titulo = ''; STATE.items = []; STATE.editingId = null;
-    // Salva state COM o historico atualizado (nao usa clearState, que apaga tudo)
+    STATE.analista = STATE.analista || (APP_CONFIG && APP_CONFIG.empresa && APP_CONFIG.empresa.analista) || '';
     await saveState();
-    $('setorInv').value = '';
-    $('dataInv').value = todayIso();
-    $('btnResume').style.display = 'none';
+    if ($('setorInv')) $('setorInv').value = '';
+    if ($('dataInv')) $('dataInv').value = todayIso();
+    if ($('btnResume')) $('btnResume').style.display = 'none';
     window._lastPlanilhaBlob = null;
+    window._lastPlanilhaBuf = null;
     if ($('btnShare')) $('btnShare').style.display = 'none';
     updateTopbar(); updateDashboard();
-    toast('Inventario arquivado! Comece um novo.', 3500);
+  }
+
+  // Botão principal: novo inventário completo (redefinir tudo)
+  $('btnNew').onclick = async () => {
+    if (!(await confirmarArquivamento())) return;
+    await arquivarELimparEstado();
+    toast('Inventario arquivado. Comece um novo.', 3500);
     showScreen('screen-start');
   };
+
+  // NOVO: Continuar em outro setor (mesmo analista, data de hoje)
+  const btnContinuar = document.getElementById('btnContinuarSetor');
+  if (btnContinuar) {
+    btnContinuar.onclick = async () => {
+      const inputSetor = document.getElementById('nextSetor');
+      const novoSetor = (inputSetor && inputSetor.value || '').trim();
+      if (!novoSetor) {
+        toast('Informe o nome do próximo setor primeiro.', 3000);
+        if (inputSetor) inputSetor.focus();
+        return;
+      }
+      // checa duplicata mesmo dia
+      const hojeIso = todayIso();
+      const jaHoje = (STATE.historicoSessoes || []).some(h =>
+        h.setor && h.setor.toLowerCase() === novoSetor.toLowerCase() && h.data === hojeIso);
+      if (jaHoje) {
+        if (!confirm('O setor "' + novoSetor + '" já foi inventariado hoje. Criar um SEGUNDO inventário separado?')) return;
+      }
+      if (!(await confirmarArquivamento())) return;
+      // preserva analista e template do título
+      const analistaAtual = STATE.analista || (APP_CONFIG && APP_CONFIG.empresa && APP_CONFIG.empresa.analista) || '';
+      const tituloTemplate = STATE.titulo || (APP_CONFIG && APP_CONFIG.empresa && APP_CONFIG.empresa.titulo) || 'INVENTARIO DE EQUIPAMENTOS DE TI';
+      await arquivarELimparEstado();
+      // reidenta com novo setor
+      STATE.data = hojeIso;
+      STATE.setor = novoSetor;
+      STATE.analista = analistaAtual;
+      STATE.titulo = tituloTemplate;
+      await saveState();
+      if ($('setorInv')) $('setorInv').value = novoSetor;
+      if ($('analistaInv')) $('analistaInv').value = analistaAtual;
+      if ($('tituloInv')) $('tituloInv').value = tituloTemplate;
+      if ($('dataInv')) $('dataInv').value = hojeIso;
+      updateTopbar(); updateDashboard();
+      toast('Iniciado inventário no setor: ' + novoSetor, 3000);
+      // vai direto pra tela de lista (setor já configurado, pode adicionar ativos)
+      showScreen('screen-list');
+      // limpa o campo pra próxima
+      if (inputSetor) inputSetor.value = '';
+      const badge = document.getElementById('nextSetorBadge');
+      if (badge) badge.style.display = 'none';
+    };
+  }
+
+  // NOVO: Só arquivar (volta ao menu)
+  const btnSoArq = document.getElementById('btnSoArquivar');
+  if (btnSoArq) {
+    btnSoArq.onclick = async () => {
+      if (!(await confirmarArquivamento())) return;
+      await arquivarELimparEstado();
+      toast('Inventario arquivado.', 3000);
+      showScreen('screen-start');
+    };
+  }
+
+  // v1.6.0 #06: botão "Arquivar e iniciar novo" no dashboard (atalho)
+  const btnArqDash = document.getElementById('btnArquivarDash');
+  if (btnArqDash) {
+    btnArqDash.onclick = async () => {
+      if (!(await confirmarArquivamento())) return;
+      await arquivarELimparEstado();
+      toast('Inventario arquivado. Toque em Iniciar para começar outro.', 3500);
+      updateDashboard();
+    };
+  }
+
+  // NOVO: Badge "última visita" quando digita setor já visitado
+  const nextSetorInput = document.getElementById('nextSetor');
+  if (nextSetorInput) {
+    nextSetorInput.addEventListener('input', () => {
+      const val = nextSetorInput.value.trim().toLowerCase();
+      const badge = document.getElementById('nextSetorBadge');
+      if (!badge) return;
+      if (!val) { badge.style.display = 'none'; return; }
+      const visitas = (STATE.historicoSessoes || []).filter(h =>
+        h.setor && h.setor.toLowerCase() === val);
+      if (visitas.length === 0) {
+        badge.style.display = 'none';
+        return;
+      }
+      const ult = visitas.sort((a, b) => (b.data || '').localeCompare(a.data || ''))[0];
+      const totItens = visitas.reduce((acc, v) => acc + (v.totalItens || 0), 0);
+      badge.textContent = 'ℹ️ Setor já inventariado ' + visitas.length + 'x · última visita: ' +
+        (ult.data || '-') + ' · ' + totItens + ' ativos total';
+      badge.style.display = 'block';
+    });
+  }
 
   updateTopbar(); updateDashboard();
   // Validacao visual de Numero de Serie (alerta, nao bloqueia)
@@ -4076,7 +4309,13 @@ async function gerarPDF() {
     ]);
   }
 
-  doc.autoTable({
+  // v1.6.0 #01: jspdf-autotable 3.5+ removeu doc.autoTable, agora é autoTable(doc, opts)
+  // Detecta ambos os formatos pra funcionar em qualquer versão da CDN
+  const _autoTableFn = (typeof window.autoTable === 'function') ? window.autoTable
+                     : (typeof doc.autoTable === 'function') ? doc.autoTable.bind(doc)
+                     : null;
+  if (!_autoTableFn) throw new Error('Plugin jspdf-autotable não carregou. Verifique a conexão de internet.');
+  _autoTableFn(doc, {
     startY: 28,
     head: [['#', 'Tipo', 'Marca', 'Modelo', 'Patrimonio', 'Serie', 'Usuario', 'Ramal', 'Obs']],
     body: linhas,
@@ -4354,25 +4593,109 @@ function extrairCandidatosPadrao(text) {
   return cands.slice(0, 5);
 }
 
-window.addEventListener('keydown', (e) => {
+// ============================================================
+// v1.6.0 #03: Editar cabeçalho do inventário (título+setor+analista)
+// ============================================================
+function atualizarPreviewCabecalho() {
+  const box = document.getElementById('invHeaderPreview');
+  if (!box) return;
+  const titulo = (STATE.titulo || 'INVENTARIO DE EQUIPAMENTOS DE TI').trim();
+  const setor = STATE.setor || 'sem setor';
+  const analista = STATE.analista || (APP_CONFIG && APP_CONFIG.empresa && APP_CONFIG.empresa.analista) || 'sem analista';
+  if (!STATE.items || STATE.items.length === 0) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  const t = document.getElementById('ihpTitulo');
+  const s = document.getElementById('ihpSetor');
+  const a = document.getElementById('ihpAnalista');
+  if (t) t.textContent = titulo;
+  if (s) s.textContent = '🏢 ' + setor;
+  if (a) a.textContent = '👤 ' + analista;
+}
+
+function abrirModalEditarCabecalho() {
+  const antigo = document.getElementById('modalEditarCab');
+  if (antigo) antigo.remove();
+  const titulo = STATE.titulo || 'INVENTARIO DE EQUIPAMENTOS DE TI';
+  const setor = STATE.setor || '';
+  const analista = STATE.analista || (APP_CONFIG && APP_CONFIG.empresa && APP_CONFIG.empresa.analista) || '';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'modalEditarCab';
+  modal.innerHTML =
+    '<div class="modal-box" style="max-width:440px">' +
+      '<div class="modal-head">' +
+        '<h3 style="margin:0">Editar cabecalho</h3>' +
+        '<button type="button" class="modal-close" id="mecClose" aria-label="Fechar">x</button>' +
+      '</div>' +
+      '<div class="modal-body" style="display:flex;flex-direction:column;gap:12px">' +
+        '<div>' +
+          '<label style="display:block;font-size:12px;color:#94A3B8;margin-bottom:4px">Titulo do inventario</label>' +
+          '<input type="text" id="mecTitulo" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />' +
+        '</div>' +
+        '<div>' +
+          '<label style="display:block;font-size:12px;color:#94A3B8;margin-bottom:4px">Setor</label>' +
+          '<input type="text" id="mecSetor" list="setoresList" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />' +
+        '</div>' +
+        '<div>' +
+          '<label style="display:block;font-size:12px;color:#94A3B8;margin-bottom:4px">Analista responsavel</label>' +
+          '<input type="text" id="mecAnalista" list="analistasList" style="width:100%;padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />' +
+        '</div>' +
+        '<p style="font-size:12px;color:#94A3B8;margin:4px 0 0">Alteracoes afetam o inventario em andamento (relatorio, Excel, PDF).</p>' +
+      '</div>' +
+      '<div class="modal-foot" style="display:flex;gap:8px;justify-content:flex-end;padding:10px 14px 12px">' +
+        '<button type="button" class="btn btn-secondary" id="mecCancel">Cancelar</button>' +
+        '<button type="button" class="btn btn-primary" id="mecSave">Salvar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  document.getElementById('mecTitulo').value = titulo;
+  document.getElementById('mecSetor').value = setor;
+  document.getElementById('mecAnalista').value = analista;
+  var fechar = function() { modal.remove(); };
+  document.getElementById('mecClose').onclick = fechar;
+  document.getElementById('mecCancel').onclick = fechar;
+  modal.addEventListener('click', function(e) { if (e.target === modal) fechar(); });
+  document.getElementById('mecSave').onclick = function() {
+    var novoTitulo = document.getElementById('mecTitulo').value.trim();
+    var novoSetor = document.getElementById('mecSetor').value.trim();
+    var novoAnalista = document.getElementById('mecAnalista').value.trim();
+    if (!novoSetor) { alert('O setor nao pode ficar vazio.'); return; }
+    STATE.titulo = novoTitulo || 'INVENTARIO DE EQUIPAMENTOS DE TI';
+    STATE.setor = novoSetor;
+    STATE.analista = novoAnalista;
+    if (document.getElementById('tituloInv')) document.getElementById('tituloInv').value = STATE.titulo;
+    if (document.getElementById('setorInv')) document.getElementById('setorInv').value = STATE.setor;
+    if (document.getElementById('analistaInv')) document.getElementById('analistaInv').value = STATE.analista;
+    if (typeof saveState === 'function') saveState();
+    atualizarPreviewCabecalho();
+    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('Cabecalho atualizado', 'ok');
+    fechar();
+  };
+  setTimeout(function() { var t = document.getElementById('mecTitulo'); if (t) t.focus(); }, 50);
+}
+
+window.addEventListener('keydown', function(e) {
   if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
   if (e.key === 'Enter' && document.querySelector('#screen-wizard.active')) {
     e.preventDefault();
-    const btn = document.getElementById('wizNext');
+    var btn = document.getElementById('wizNext');
     if (btn) btn.click();
   }
   if (e.key === 'Escape') {
-    const modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal') || document.getElementById('iaSuggestModal');
+    var modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal') || document.getElementById('iaSuggestModal') || document.getElementById('modalEditarCab');
     if (modal) modal.remove();
   }
   if (e.ctrlKey && e.key === 's') {
     e.preventDefault();
     if (typeof saveState === 'function') saveState();
-    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('💾 Salvo (manual)', 'ok');
+    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('Salvo (manual)', 'ok');
   }
 });
 
-window.addEventListener('beforeunload', (e) => {
+window.addEventListener('beforeunload', function(e) {
   if (STATE.items && STATE.items.length > 0) {
     e.preventDefault();
     e.returnValue = '';
