@@ -2,6 +2,28 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.6.3] - 2026-07-14 (PATCH — Card HOJE + auto-reset diário + fix zerar + ícone posto)
+
+### 🌅 Card "HOJE" no dashboard
+Novo card em destaque no topo da tela inicial mostra **três métricas do dia corrente**:
+- Postos cadastrados hoje
+- Ativos registrados hoje
+- Setores visitados hoje
+
+A contagem soma inventário atual (se `STATE.data === hoje`) + arquivados com `data === hoje`.
+
+### ⏰ Auto-reset diário às 06:00
+Checkbox `Auto-reset diário` no próprio card. Quando ligado:
+- Se o app já estiver aberto às 06h → zera automaticamente (via `setTimeout` que se reagenda)
+- Se o usuário abrir o app depois das 06h de um novo dia (`STATE.ultimoAutoResetIso !== hoje`) → zera no boot
+- Só o dashboard é zerado (modo visual). Nenhum dado é apagado — histórico inteiro continua acessível.
+
+Ideal pro analista que faz varredura em vários setores por dia: cada dia começa "limpo" no painel, mas o histórico acumulado continua todo lá.
+
+### 🐛 Fixes
+- **"Erro ao zerar" pelo menu lateral** — o try/catch síncrono não pegava throws de função async. Agora navega pra home ANTES de chamar `zerarContadoresDashboard()`, com `.catch()` no promise pra logar erro real.
+- **Ícone de "Postos de trabalho"** — trocado 📦 (caixa) por 🧑‍💻 (pessoa com notebook), mais representativo de posto de trabalho com usuário atribuído.
+
 ## [1.6.2] - 2026-07-14 (PATCH — PDF garantido + menu reconstruído + Zerar sem apagar)
 
 ### 🐛 Fixes críticos

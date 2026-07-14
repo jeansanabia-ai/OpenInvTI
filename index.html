@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.2</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.3</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -131,9 +131,43 @@
         <button type="button" id="btnRestaurarContadores" style="background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#FCD34D;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Restaurar</button>
       </div>
 
+      <!-- v1.6.3: Card "HOJE" — mostra progresso do dia + auto-reset opcional -->
+      <div class="hoje-card" id="hojeCard">
+        <div class="hoje-head">
+          <div class="hoje-title-group">
+            <span class="hoje-emoji">☀️</span>
+            <div>
+              <div class="hoje-label">HOJE · <span id="hojeData">-</span></div>
+              <div class="hoje-hint" id="hojeHint">Trabalho do dia (todos os setores)</div>
+            </div>
+          </div>
+          <label class="hoje-toggle" title="Zerar automaticamente todo dia às 06h">
+            <input type="checkbox" id="hojeAutoReset" />
+            <span class="hoje-toggle-label">Auto-reset diário</span>
+          </label>
+        </div>
+        <div class="hoje-grid">
+          <div class="hoje-tile">
+            <span class="hoje-tile-icon">🧑‍💻</span>
+            <span class="hoje-tile-value" id="hojePostos">0</span>
+            <span class="hoje-tile-label">Postos</span>
+          </div>
+          <div class="hoje-tile">
+            <span class="hoje-tile-icon">💻</span>
+            <span class="hoje-tile-value" id="hojeAtivos">0</span>
+            <span class="hoje-tile-label">Ativos</span>
+          </div>
+          <div class="hoje-tile">
+            <span class="hoje-tile-icon">🏢</span>
+            <span class="hoje-tile-value" id="hojeSetores">0</span>
+            <span class="hoje-tile-label">Setores</span>
+          </div>
+        </div>
+      </div>
+
       <div class="dash-grid dash-grid-4">
         <div class="dash-card" data-dash="postos" title="Ver postos de trabalho">
-          <div class="dash-card-icon">📦</div>
+          <div class="dash-card-icon">🧑‍💻</div>
           <div class="dash-card-label">Postos de trabalho</div>
           <div class="dash-card-value" id="dashSessoes">0</div>
         </div>
@@ -561,7 +595,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.6.2</p>
+          <p>Gestão de Ativos de TI · v1.6.3</p>
         </div>
       </div>
       <div class="side-menu-list">

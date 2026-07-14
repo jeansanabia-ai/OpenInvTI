@@ -1427,6 +1427,33 @@ html.light-mode .side-menu-item svg { color: #2563EB; }
   gap: 10px;
   margin: 14px 0 20px;
 }
+/* v1.6.3: Card HOJE — progresso do dia */
+.hoje-card {
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.16), rgba(59, 130, 246, 0.08));
+  border: 1px solid rgba(6, 182, 212, 0.28);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin: 8px 0 14px;
+}
+.hoje-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.hoje-title-group { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.hoje-emoji { font-size: 20px; }
+.hoje-label { font-size: 12px; font-weight: 700; color: #67E8F9; letter-spacing: 0.4px; }
+.hoje-hint { font-size: 11px; color: #94A3B8; margin-top: 1px; }
+.hoje-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #94A3B8; cursor: pointer; user-select: none; }
+.hoje-toggle input { width: 14px; height: 14px; accent-color: #06B6D4; }
+.hoje-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.hoje-tile {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(6, 182, 212, 0.14);
+  border-radius: 10px;
+  padding: 10px 6px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.hoje-tile-icon { font-size: 20px; line-height: 1; }
+.hoje-tile-value { font-weight: 800; font-size: 20px; color: #67E8F9; line-height: 1.1; }
+.hoje-tile-label { font-size: 10px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 700; }
+
 /* v1.6.0 #02: grid de 4 cards (Postos / Ativos / Usuários / Setores) */
 .dash-grid.dash-grid-4 {
   grid-template-columns: repeat(2, 1fr);

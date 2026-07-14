@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.6.2';
+const APP_VERSION = '1.6.3';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -461,6 +461,8 @@ function updateDashboard() {
   // v1.6.0 #06: botão "Arquivar" no dashboard só aparece se há inventário em andamento
   const btnArqDash = document.getElementById('btnArquivarDash');
   if (btnArqDash) btnArqDash.style.display = ((STATE.items || []).length > 0) ? 'block' : 'none';
+  // v1.6.3: atualiza card HOJE (contadores do dia corrente)
+  try { atualizarCardHoje(); } catch (e) { console.warn('Erro card Hoje:', e); }
   // v1.6.0 #02: cards clicáveis usando data-dash (mais robusto que indice)
   const cards = document.querySelectorAll('#screen-start .dash-card');
   const mapAcao = { postos: 'sessoes', itens: 'itens', usuarios: 'usuarios', setores: 'setores' };
@@ -3548,7 +3550,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (acao === 'home') showScreen('screen-start');
         else if (acao === 'historico') { try { abrirHistoricoModal('sessoes'); } catch (e) { toast('Histórico indisponível.', 3000); } }
         else if (acao === 'setores') { try { abrirHistoricoModal('setores'); } catch (e) { toast('Setores indisponíveis.', 3000); } }
-        else if (acao === 'zerar') { try { zerarContadoresDashboard(); } catch (e) { toast('Erro ao zerar.', 3000); } }
+        else if (acao === 'zerar') {
+          // v1.6.3: navega pra home ANTES de zerar (garante que updateDashboard encontre os elementos)
+          showScreen('screen-start');
+          setTimeout(() => {
+            zerarContadoresDashboard().catch((e) => {
+              console.error('Erro ao zerar:', e);
+              toast('Erro: ' + (e.message || e), 3500);
+            });
+          }, 150);
+        }
         else if (acao === 'analise') { try { abrirDashboardAnalitico(); } catch (e) { toast('Análise indisponível.', 3000); } }
         else if (acao === 'config') {
           if ($('cfgEmpresa')) $('cfgEmpresa').value = APP_CONFIG.empresa.nome || '';
@@ -4260,6 +4271,27 @@ window.addEventListener('DOMContentLoaded', async () => {
   // v1.6.2: botão "Restaurar" no banner do modo zerado
   const btnRest = document.getElementById('btnRestaurarContadores');
   if (btnRest) btnRest.onclick = restaurarContadoresDashboard;
+  // v1.6.3: checkbox de auto-reset diário no card Hoje
+  const chkAuto = document.getElementById('hojeAutoReset');
+  if (chkAuto) {
+    chkAuto.checked = !!STATE.autoResetDiario;
+    chkAuto.onchange = async () => {
+      STATE.autoResetDiario = chkAuto.checked;
+      try { await saveState(); } catch (e) {}
+      if (chkAuto.checked) {
+        agendarAutoReset();
+        toast('Auto-reset ligado. Vai zerar todo dia às 06h.', 4000);
+      } else {
+        if (_autoResetTimer) { clearTimeout(_autoResetTimer); _autoResetTimer = null; }
+        toast('Auto-reset desligado.', 3000);
+      }
+      atualizarCardHoje();
+    };
+  }
+  // no boot: checa se precisa reset (usuário abriu depois das 06h de um novo dia)
+  try { verificarAutoResetBoot(); } catch (e) {}
+  // agenda timer se ativo
+  try { agendarAutoReset(); } catch (e) {}
 
   // NOVO: Badge "última visita" quando digita setor já visitado
   const nextSetorInput = document.getElementById('nextSetor');
@@ -4787,5 +4819,27 @@ function abrirModalEditarCabecalho() {
   setTimeout(function() { var t = document.getElementById('mecTitulo'); if (t) t.focus(); }, 50);
 }
 
-// v1.6.2: zerar contadores do dashboard — SÓ VISUALMENTE (não apaga nada)
-// O histórico continua in
+window.addEventListener('keydown', function(e) {
+  if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
+  if (e.key === 'Enter' && document.querySelector('#screen-wizard.active')) {
+    e.preventDefault();
+    var btn = document.getElementById('wizNext');
+    if (btn) btn.click();
+  }
+  if (e.key === 'Escape') {
+    var modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal') || document.getElementById('iaSuggestModal') || document.getElementById('modalEditarCab');
+    if (modal) modal.remove();
+  }
+  if (e.ctrlKey && e.key === 's') {
+    e.preventDefault();
+    if (typeof saveState === 'function') saveState();
+    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('Salvo (manual)', 'ok');
+  }
+});
+
+window.addEventListener('beforeunload', function(e) {
+  if (STATE.items && STATE.items.length > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
