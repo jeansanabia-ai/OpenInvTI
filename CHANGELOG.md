@@ -2,6 +2,18 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.6.1] - 2026-07-14 (PATCH — hotfixes UX + zerar contadores)
+
+### 🐛 Fixes
+
+- **PDF `t.map is not a function`** — reescrito o gerador com `columns` + body de objetos (formato robusto do jspdf-autotable 3.8+). Todo valor é convertido pra string antes de entrar na tabela.
+- **Menu lateral com SVG gigante** — o ícone do relógio (Inventários salvos) escapava pra 300px de largura. Adicionadas regras CSS com `!important` forçando 20×20px em todos os SVGs do menu, seletor específico `.side-menu .side-menu-item > svg`, e visual do menu redesenhado (padding menor, radius nos itens, gradient sutil no ativo).
+
+### ✨ Melhorias
+
+- **Editar cabeçalho direto na tela final** (#03 refinado) — botão ✏️ no header do resumo executivo. Abre o mesmo modal (título + setor + analista) e atualiza os textos da tela final em tempo real.
+- **Zerar contadores no dashboard** (novo) — botão `🔄 Zerar contadores (começar do zero)` na tela inicial. Arquiva o inventário atual (se houver) e **apaga o histórico contábil** pra que Postos/Ativos/Usuários/Setores voltem pra zero. Útil pro analista organizar melhor: começa uma nova contagem "limpa" a partir dali, sem perder a configuração da empresa nem os regexes de patrimônio. Confirmação dupla protege contra clique acidental.
+
 ## [1.6.0] - 2026-07-14 (MINOR — fluxo em cadeia + share unificado + fixes críticos)
 
 Release grande focada em **produtividade em campo** (menos cliques entre setores) e **correção de 3 bugs críticos** reportados por uso real.

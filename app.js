@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -3668,6 +3668,19 @@ window.addEventListener('DOMContentLoaded', async () => {
   if ($('listBack')) $('listBack').onclick = () => showScreen('screen-start');
   // v1.6.0 #03: botão editar cabeçalho (título + setor + analista)
   if ($('btnEditarCabecalho')) $('btnEditarCabecalho').onclick = abrirModalEditarCabecalho;
+  // v1.6.1 #03: mesmo botão na tela final
+  if ($('btnEditarCabecalhoFinal')) $('btnEditarCabecalhoFinal').onclick = () => {
+    abrirModalEditarCabecalho();
+    // depois de salvar, atualiza a UI da tela final
+    setTimeout(() => {
+      if ($('rTitulo')) $('rTitulo').textContent = STATE.titulo || 'Resumo do inventário';
+      if ($('rSetor')) $('rSetor').textContent = STATE.setor || '-';
+      if ($('rAnalista') && STATE.analista) {
+        $('rAnalista').textContent = STATE.analista;
+        if ($('rAnalistaWrap')) $('rAnalistaWrap').style.display = '';
+      }
+    }, 100);
+  };
   // v1.0.10: chips rápidos da tela de usuário
   if ($('wizFieldsUser')) {
     $('wizFieldsUser').querySelectorAll('.user-chip').forEach((btn) => {
@@ -4071,6 +4084,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     $('rData').textContent = fmtDateBR(STATE.data);
     $('rSetor').textContent = STATE.setor;
+    // v1.6.1: título editável no header da tela final
+    if ($('rTitulo')) $('rTitulo').textContent = STATE.titulo || 'Resumo do inventário';
     $('rTotal').textContent = STATE.items.length;
     $('rCpu').textContent = STATE.items.filter((i) => i.tipo === 'CPU').length;
     $('rMon').textContent = STATE.items.filter((i) => i.tipo === 'Monitor').length;
@@ -4216,6 +4231,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       updateDashboard();
     };
   }
+  // v1.6.1 #05: botão "Zerar contadores" na tela home
+  const btnZerar = document.getElementById('btnZerarContadores');
+  if (btnZerar) btnZerar.onclick = zerarContadoresDashboard;
 
   // NOVO: Badge "última visita" quando digita setor já visitado
   const nextSetorInput = document.getElementById('nextSetor');
@@ -4299,35 +4317,54 @@ async function gerarPDF() {
     if (!sessoes.has(key)) { sessoes.set(key, []); ordem.push(key); }
     sessoes.get(key).push(it);
   }
+  // v1.6.0 fix: TUDO em string (jspdf-autotable 3.8+ estava dando "t.map is not a function"
+  // quando havia mistura de tipos ou valores undefined)
   const linhas = [];
   let n = 1;
   for (const key of ordem) for (const it of sessoes.get(key)) {
     linhas.push([
-      n++, it.tipo || '', it.marca || '-', it.modelo || '-',
-      it.patrimonio || 'Nao capturado', it.serie || '-',
-      it.usuario || '(sem usuário)', it.ramal || '', (it.obs || '').slice(0, 60)
+      String(n++),
+      String(it.tipo || ''),
+      String(it.marca || '-'),
+      String(it.modelo || '-'),
+      String(it.patrimonio || 'Nao capturado'),
+      String(it.serie || '-'),
+      String(it.usuario || '(sem usuario)'),
+      String(it.ramal || ''),
+      String((it.obs || '')).slice(0, 60)
     ]);
   }
 
   // v1.6.0 #01: jspdf-autotable 3.5+ removeu doc.autoTable, agora é autoTable(doc, opts)
-  // Detecta ambos os formatos pra funcionar em qualquer versão da CDN
   const _autoTableFn = (typeof window.autoTable === 'function') ? window.autoTable
                      : (typeof doc.autoTable === 'function') ? doc.autoTable.bind(doc)
                      : null;
-  if (!_autoTableFn) throw new Error('Plugin jspdf-autotable não carregou. Verifique a conexão de internet.');
+  if (!_autoTableFn) throw new Error('Plugin jspdf-autotable nao carregou. Verifique a conexao de internet.');
+
+  // Usa formato "columns" (mais robusto que head array-of-array em 3.8+)
+  const colunas = [
+    { header: '#',          dataKey: 'n' },
+    { header: 'Tipo',       dataKey: 'tipo' },
+    { header: 'Marca',      dataKey: 'marca' },
+    { header: 'Modelo',     dataKey: 'modelo' },
+    { header: 'Patrimonio', dataKey: 'pat' },
+    { header: 'Serie',      dataKey: 'ser' },
+    { header: 'Usuario',    dataKey: 'usu' },
+    { header: 'Ramal',      dataKey: 'ram' },
+    { header: 'Obs',        dataKey: 'obs' },
+  ];
+  const bodyObj = linhas.map(l => ({
+    n: l[0], tipo: l[1], marca: l[2], modelo: l[3], pat: l[4],
+    ser: l[5], usu: l[6], ram: l[7], obs: l[8]
+  }));
   _autoTableFn(doc, {
     startY: 28,
-    head: [['#', 'Tipo', 'Marca', 'Modelo', 'Patrimonio', 'Serie', 'Usuario', 'Ramal', 'Obs']],
-    body: linhas,
+    columns: colunas,
+    body: bodyObj,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [240, 247, 252] },
-    columnStyles: { 0: { halign: 'center', cellWidth: 10 }, 7: { halign: 'center' } },
-    didParseCell: (data) => {
-      if (data.section === 'body' && data.row.raw[8] && data.row.raw[8].includes('SEM ETIQUETA')) {
-        data.cell.styles.fillColor = [255, 245, 157];
-      }
-    },
+    columnStyles: { n: { halign: 'center', cellWidth: 10 }, ram: { halign: 'center' } },
   });
 
   // v1.0.11: formato AAAA-MM-DD_NomeDoSetor.pdf
@@ -4671,10 +4708,55 @@ function abrirModalEditarCabecalho() {
     if (document.getElementById('analistaInv')) document.getElementById('analistaInv').value = STATE.analista;
     if (typeof saveState === 'function') saveState();
     atualizarPreviewCabecalho();
+    // v1.6.1: se estou na tela final, atualiza o resumo em tempo real
+    if (document.getElementById('rTitulo')) document.getElementById('rTitulo').textContent = STATE.titulo || 'Resumo do inventario';
+    if (document.getElementById('rSetor')) document.getElementById('rSetor').textContent = STATE.setor || '-';
+    if (document.getElementById('rAnalista') && STATE.analista) {
+      document.getElementById('rAnalista').textContent = STATE.analista;
+      if (document.getElementById('rAnalistaWrap')) document.getElementById('rAnalistaWrap').style.display = '';
+    }
     if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('Cabecalho atualizado', 'ok');
     fechar();
   };
   setTimeout(function() { var t = document.getElementById('mecTitulo'); if (t) t.focus(); }, 50);
+}
+
+// v1.6.1: zerar contadores do dashboard (arquiva atual + APAGA histórico contábil)
+async function zerarContadoresDashboard() {
+  const totalHist = (STATE.historicoSessoes || []).length;
+  const totalAtual = (STATE.items || []).length;
+  if (totalHist === 0 && totalAtual === 0) {
+    toast('Contadores já estão zerados.', 3000);
+    return;
+  }
+  var msg = 'ZERAR CONTADORES DO DASHBOARD?\n\n';
+  msg += 'Postos, Ativos, Usuarios e Setores voltam pra ZERO.\n\n';
+  if (totalAtual > 0) msg += '- ' + totalAtual + ' ativo(s) do inventario ATUAL serao arquivados primeiro.\n';
+  if (totalHist > 0)  msg += '- ' + totalHist + ' inventario(s) arquivado(s) sao APAGADOS.\n\n';
+  msg += 'Recomendado: baixar planilha/PDF dos arquivados antes.\n\n';
+  msg += 'Esta acao NAO PODE ser desfeita. Confirma?';
+  if (!confirm(msg)) return;
+  // arquiva o atual se houver
+  if (totalAtual > 0) {
+    try { arquivarInventarioAtual(); } catch (e) {}
+  }
+  // apaga histórico
+  STATE.historicoSessoes = [];
+  STATE.items = [];
+  STATE.data = '';
+  STATE.setor = '';
+  STATE.titulo = '';
+  STATE.editingId = null;
+  window._lastPlanilhaBlob = null;
+  window._lastPlanilhaBuf = null;
+  window._lastPdfBlob = null;
+  try { await saveState(); } catch (e) {}
+  if (typeof updateTopbar === 'function') updateTopbar();
+  if (typeof updateDashboard === 'function') updateDashboard();
+  if ($('btnResume')) $('btnResume').style.display = 'none';
+  if ($('btnArquivarDash')) $('btnArquivarDash').style.display = 'none';
+  toast('✓ Contadores zerados. Comece um novo inventário do zero.', 4000);
+  showScreen('screen-start');
 }
 
 window.addEventListener('keydown', function(e) {

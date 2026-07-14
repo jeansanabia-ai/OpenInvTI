@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.0</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.1</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -175,6 +175,8 @@
       <button class="btn btn-secondary" id="btnResume" style="display:none">↻ Retomar inventário em andamento</button>
       <!-- v1.6.0 #06: arquivar direto do dashboard (quando há inventário em andamento) -->
       <button class="btn btn-ghost" id="btnArquivarDash" style="display:none;margin-top:10px">📦 Arquivar e iniciar novo</button>
+      <!-- v1.6.1: zerar contadores (começar contagem do zero, mantendo config) -->
+      <button class="btn btn-ghost" id="btnZerarContadores" style="margin-top:10px;color:#F87171;border-color:rgba(248,113,113,0.3)" title="Apaga histórico contábil pra começar contagem nova">🔄 Zerar contadores (começar do zero)</button>
     </section>
 
     <!-- TELA 2: Lista de usuários/sessões — v1.0.10: header com Voltar + título -->
@@ -370,8 +372,8 @@
       <div class="exec-summary-card">
         <div class="exec-summary-head">
           <div class="exec-summary-icon">📋</div>
-          <div>
-            <h3 class="exec-summary-title">Resumo do inventário</h3>
+          <div style="flex:1;min-width:0">
+            <h3 class="exec-summary-title" id="rTitulo">Resumo do inventário</h3>
             <div class="exec-summary-meta">
               <span id="rData">-</span> · <span id="rSetor">-</span>
             </div>
@@ -379,6 +381,8 @@
               👤 <span id="rAnalista">-</span>
             </div>
           </div>
+          <!-- v1.6.1: botão editar cabeçalho direto na tela final -->
+          <button type="button" class="btn-header-icon" id="btnEditarCabecalhoFinal" title="Editar título, setor e analista" aria-label="Editar">✏️</button>
         </div>
 
         <div class="exec-summary-total">
@@ -550,7 +554,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.6.0</p>
+          <p>Gestão de Ativos de TI · v1.6.1</p>
         </div>
       </div>
       <div class="side-menu-list">
