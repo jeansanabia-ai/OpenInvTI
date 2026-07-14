@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.3</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.7.0</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -129,6 +129,26 @@
         <span style="font-size:18px">👁️</span>
         <span style="flex:1">Contadores zerados (histórico oculto)</span>
         <button type="button" id="btnRestaurarContadores" style="background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#FCD34D;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Restaurar</button>
+      </div>
+
+      <!-- v1.7.0: Card MÊS FECHADO — consolidado do último mês inteiro -->
+      <div class="mes-card" id="mesCard" style="display:none">
+        <div class="mes-head">
+          <div class="mes-title-group">
+            <span class="mes-emoji">📅</span>
+            <div>
+              <div class="mes-label" id="mesLabel">MÊS FECHADO</div>
+              <div class="mes-hint">Consolidado do último mês completo</div>
+            </div>
+          </div>
+          <button type="button" class="mes-ver-btn" id="btnVerRelatorioMensal">Ver relatório →</button>
+        </div>
+        <div class="mes-grid">
+          <div class="mes-tile"><span class="mes-tile-value" id="mesInvents">0</span><span class="mes-tile-label">Inventários</span></div>
+          <div class="mes-tile"><span class="mes-tile-value" id="mesAtivos">0</span><span class="mes-tile-label">Ativos</span></div>
+          <div class="mes-tile"><span class="mes-tile-value" id="mesSetores">0</span><span class="mes-tile-label">Setores</span></div>
+          <div class="mes-tile"><span class="mes-tile-value" id="mesAnalistas">0</span><span class="mes-tile-label">Analistas</span></div>
+        </div>
       </div>
 
       <!-- v1.6.3: Card "HOJE" — mostra progresso do dia + auto-reset opcional -->
@@ -407,6 +427,57 @@
       </div>
     </section>
 
+    <!-- v1.7.0: TELA de Relatório Mensal (último mês fechado) -->
+    <section class="screen" id="screen-relatorio-mensal">
+      <div class="screen-header">
+        <button class="btn-back" id="rmBack" aria-label="Voltar">← Voltar</button>
+        <h2 class="screen-header-title">Relatório mensal</h2>
+      </div>
+
+      <div class="rm-hero">
+        <div class="rm-hero-title" id="rmTitulo">Julho / 2026</div>
+        <div class="rm-hero-sub" id="rmSubtitulo">Consolidado do mês</div>
+      </div>
+
+      <div class="rm-metricas-grid">
+        <div class="rm-metrica"><div class="rm-metrica-val" id="rmInvents">0</div><div class="rm-metrica-lbl">Inventários</div></div>
+        <div class="rm-metrica"><div class="rm-metrica-val" id="rmAtivos">0</div><div class="rm-metrica-lbl">Ativos</div></div>
+        <div class="rm-metrica"><div class="rm-metrica-val" id="rmSetores">0</div><div class="rm-metrica-lbl">Setores</div></div>
+        <div class="rm-metrica"><div class="rm-metrica-val" id="rmAnalistas">0</div><div class="rm-metrica-lbl">Analistas</div></div>
+      </div>
+
+      <div class="rm-secao">
+        <div class="rm-secao-titulo">📊 Evolução dia-a-dia</div>
+        <div class="rm-chart-wrap">
+          <canvas id="rmChartEvolucao"></canvas>
+        </div>
+      </div>
+
+      <div class="rm-secao">
+        <div class="rm-secao-titulo">🏢 Top setores</div>
+        <div id="rmTopSetores"></div>
+      </div>
+
+      <div class="rm-secao">
+        <div class="rm-secao-titulo">💻 Distribuição por tipo</div>
+        <div id="rmDistTipos"></div>
+      </div>
+
+      <div class="rm-secao">
+        <div class="rm-secao-titulo">📋 Inventários do mês</div>
+        <div id="rmTimeline"></div>
+      </div>
+
+      <div class="rm-export">
+        <div class="rm-export-title">Exportar relatório mensal</div>
+        <div class="rm-export-btns">
+          <button class="share-btn share-btn-wa" id="rmBtnWA"><span class="share-btn-icon">💬</span><span class="share-btn-label">WhatsApp</span></button>
+          <button class="share-btn share-btn-xls" id="rmBtnXLS"><span class="share-btn-icon">📊</span><span class="share-btn-label">Excel</span></button>
+          <button class="share-btn share-btn-pdf" id="rmBtnPDF"><span class="share-btn-icon">📄</span><span class="share-btn-label">PDF</span></button>
+        </div>
+      </div>
+    </section>
+
     <!-- TELA 4: Finalizar — v1.0.10: resumo executivo moderno + ações reorganizadas -->
     <section class="screen" id="screen-finish">
       <!-- Card principal: cabeçalho do inventário -->
@@ -562,6 +633,7 @@
       </div>
       <div class="cam-controls-top">
         <button class="cam-btn-back" id="camClose" aria-label="Voltar ao inventário" title="Voltar ao inventário">
+        <button class="cam-btn-back" id="camClose" aria-label="Voltar ao inventário" title="Voltar ao inventário">
           <span class="cam-btn-back-arrow">←</span>
           <span class="cam-btn-back-text">Retomar inventário</span>
         </button>
@@ -595,7 +667,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.6.3</p>
+          <p>Gestão de Ativos de TI · v1.7.0</p>
         </div>
       </div>
       <div class="side-menu-list">

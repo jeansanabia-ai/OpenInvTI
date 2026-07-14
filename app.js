@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.6.3';
+const APP_VERSION = '1.7.0';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -463,6 +463,8 @@ function updateDashboard() {
   if (btnArqDash) btnArqDash.style.display = ((STATE.items || []).length > 0) ? 'block' : 'none';
   // v1.6.3: atualiza card HOJE (contadores do dia corrente)
   try { atualizarCardHoje(); } catch (e) { console.warn('Erro card Hoje:', e); }
+  // v1.7.0: atualiza card MÊS FECHADO
+  try { atualizarCardMesFechado(); } catch (e) { console.warn('Erro card Mês:', e); }
   // v1.6.0 #02: cards clicáveis usando data-dash (mais robusto que indice)
   const cards = document.querySelectorAll('#screen-start .dash-card');
   const mapAcao = { postos: 'sessoes', itens: 'itens', usuarios: 'usuarios', setores: 'setores' };
@@ -4271,6 +4273,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   // v1.6.2: botão "Restaurar" no banner do modo zerado
   const btnRest = document.getElementById('btnRestaurarContadores');
   if (btnRest) btnRest.onclick = restaurarContadoresDashboard;
+  // v1.7.0: botão "Ver relatório mensal" + Voltar + 3 exportações
+  const btnVerMes = document.getElementById('btnVerRelatorioMensal');
+  if (btnVerMes) btnVerMes.onclick = () => { try { abrirTelaRelatorioMensal(); } catch (e) { console.error(e); toast('Erro no relatório mensal.', 3000); } };
+  const rmBack = document.getElementById('rmBack');
+  if (rmBack) rmBack.onclick = () => showScreen('screen-start');
+  const rmBtnWA = document.getElementById('rmBtnWA');
+  if (rmBtnWA) rmBtnWA.onclick = () => exportarRelatorioMensalWA().catch(e => toast('Erro: ' + (e.message || e), 3500));
+  const rmBtnXLS = document.getElementById('rmBtnXLS');
+  if (rmBtnXLS) rmBtnXLS.onclick = () => exportarRelatorioMensalExcel().catch(e => toast('Erro: ' + (e.message || e), 3500));
+  const rmBtnPDF = document.getElementById('rmBtnPDF');
+  if (rmBtnPDF) rmBtnPDF.onclick = () => exportarRelatorioMensalPDF().catch(e => toast('Erro: ' + (e.message || e), 3500));
+
   // v1.6.3: checkbox de auto-reset diário no card Hoje
   const chkAuto = document.getElementById('hojeAutoReset');
   if (chkAuto) {
@@ -4818,6 +4832,345 @@ function abrirModalEditarCabecalho() {
   };
   setTimeout(function() { var t = document.getElementById('mecTitulo'); if (t) t.focus(); }, 50);
 }
+
+
+// ============================================================
+// v1.7.0: Relatório mensal (último mês fechado)
+// ============================================================
+function getUltimoMesFechado() {
+  const agora = new Date();
+  // último dia do mês anterior
+  const primeiroDoMesAtual = new Date(agora.getFullYear(), agora.getMonth(), 1);
+  const ultimoDiaMesAnterior = new Date(primeiroDoMesAtual.getTime() - 24*60*60*1000);
+  const ano = ultimoDiaMesAnterior.getFullYear();
+  const mes = ultimoDiaMesAnterior.getMonth(); // 0..11
+  const primeiroDia = new Date(ano, mes, 1);
+  const ultimoDia = new Date(ano, mes + 1, 0);
+  const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const pad = (n) => String(n).padStart(2, '0');
+  return {
+    ano,
+    mes: mes + 1,
+    nomeMes: nomes[mes],
+    label: nomes[mes] + ' / ' + ano,
+    primeiroIso: ano + '-' + pad(mes + 1) + '-' + pad(1),
+    ultimoIso: ano + '-' + pad(mes + 1) + '-' + pad(ultimoDia.getDate()),
+    diasNoMes: ultimoDia.getDate(),
+    primeiroDia, ultimoDia
+  };
+}
+
+function filtrarInventariosDoMes(mesInfo) {
+  const arq = STATE.historicoSessoes || [];
+  return arq.filter(h => {
+    if (!h.data) return false;
+    return h.data >= mesInfo.primeiroIso && h.data <= mesInfo.ultimoIso;
+  });
+}
+
+function calcularMetricasMensais(invents, mesInfo) {
+  const setores = new Set();
+  const analistas = new Set();
+  const tiposMap = new Map();
+  const porDia = {};
+  const porSetor = {};
+  let totalAtivos = 0;
+  for (const h of invents) {
+    if (h.setor) setores.add(h.setor);
+    if (h.analista) analistas.add(h.analista);
+    const nItens = h.totalItens || (h.items ? h.items.length : 0);
+    totalAtivos += nItens;
+    porDia[h.data] = (porDia[h.data] || 0) + nItens;
+    if (h.setor) porSetor[h.setor] = (porSetor[h.setor] || 0) + nItens;
+    for (const it of (h.items || [])) {
+      const t = it.tipo || 'Outro';
+      tiposMap.set(t, (tiposMap.get(t) || 0) + 1);
+    }
+  }
+  return {
+    totalInventarios: invents.length,
+    totalAtivos,
+    totalSetores: setores.size,
+    totalAnalistas: analistas.size,
+    setores: Array.from(setores),
+    analistas: Array.from(analistas),
+    tipos: Array.from(tiposMap.entries()).sort((a, b) => b[1] - a[1]),
+    porDia,
+    porSetor: Object.entries(porSetor).sort((a, b) => b[1] - a[1])
+  };
+}
+
+function atualizarCardMesFechado() {
+  const card = document.getElementById('mesCard');
+  if (!card) return;
+  const info = getUltimoMesFechado();
+  const invents = filtrarInventariosDoMes(info);
+  if (invents.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  const m = calcularMetricasMensais(invents, info);
+  const lbl = document.getElementById('mesLabel');
+  if (lbl) lbl.textContent = info.label.toUpperCase();
+  const elI = document.getElementById('mesInvents');
+  const elA = document.getElementById('mesAtivos');
+  const elS = document.getElementById('mesSetores');
+  const elN = document.getElementById('mesAnalistas');
+  if (elI) elI.textContent = m.totalInventarios;
+  if (elA) elA.textContent = m.totalAtivos;
+  if (elS) elS.textContent = m.totalSetores;
+  if (elN) elN.textContent = m.totalAnalistas;
+}
+
+let _rmChart = null;
+function abrirTelaRelatorioMensal() {
+  const info = getUltimoMesFechado();
+  const invents = filtrarInventariosDoMes(info);
+  const m = calcularMetricasMensais(invents, info);
+  const el = (id) => document.getElementById(id);
+  if (el('rmTitulo')) el('rmTitulo').textContent = info.label;
+  if (el('rmSubtitulo')) el('rmSubtitulo').textContent = m.totalInventarios + ' inventário(s) · ' + m.totalAtivos + ' ativo(s)';
+  if (el('rmInvents')) el('rmInvents').textContent = m.totalInventarios;
+  if (el('rmAtivos')) el('rmAtivos').textContent = m.totalAtivos;
+  if (el('rmSetores')) el('rmSetores').textContent = m.totalSetores;
+  if (el('rmAnalistas')) el('rmAnalistas').textContent = m.totalAnalistas;
+  // Top setores (bar horizontal)
+  const topSet = el('rmTopSetores');
+  if (topSet) {
+    if (m.porSetor.length === 0) topSet.innerHTML = '<div class="hm-empty">Sem dados no mês.</div>';
+    else {
+      const maxV = m.porSetor[0][1] || 1;
+      topSet.innerHTML = m.porSetor.slice(0, 5).map(([nome, val]) => {
+        const pct = Math.round((val / maxV) * 100);
+        return '<div class="rm-bar-row"><div class="rm-bar-label">' + escapeHtml(nome) + '</div>' +
+          '<div class="rm-bar-track"><div class="rm-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="rm-bar-value">' + val + '</div></div>';
+      }).join('');
+    }
+  }
+  // Distribuição por tipo
+  const dist = el('rmDistTipos');
+  if (dist) {
+    if (m.tipos.length === 0) dist.innerHTML = '<div class="hm-empty">Sem itens detalhados.</div>';
+    else {
+      const maxV = m.tipos[0][1] || 1;
+      dist.innerHTML = m.tipos.map(([tipo, val]) => {
+        const pct = Math.round((val / maxV) * 100);
+        return '<div class="rm-bar-row"><div class="rm-bar-label">' + escapeHtml(tipo) + '</div>' +
+          '<div class="rm-bar-track"><div class="rm-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<div class="rm-bar-value">' + val + '</div></div>';
+      }).join('');
+    }
+  }
+  // Timeline
+  const tl = el('rmTimeline');
+  if (tl) {
+    if (invents.length === 0) tl.innerHTML = '<div class="hm-empty">Nenhum inventário no mês.</div>';
+    else {
+      const ord = invents.slice().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+      tl.innerHTML = ord.map(h => (
+        '<div class="rm-tl-item" data-arch-id="' + (h.id || '') + '">' +
+          '<div class="rm-tl-head"><span class="rm-tl-setor">' + escapeHtml(h.setor || '(sem setor)') + '</span>' +
+          '<span class="rm-tl-data">' + fmtDateBR(h.data) + '</span></div>' +
+          '<div class="rm-tl-sub">' + (h.totalItens || 0) + ' ativo(s)' +
+          (h.analista ? ' · 👤 ' + escapeHtml(h.analista) : '') + '</div>' +
+        '</div>'
+      )).join('');
+      tl.querySelectorAll('.rm-tl-item').forEach((it) => {
+        it.addEventListener('click', () => abrirInventarioArquivado(it.dataset.archId));
+      });
+    }
+  }
+  // Chart evolução dia-a-dia
+  const canvas = el('rmChartEvolucao');
+  if (canvas && typeof Chart !== 'undefined') {
+    const labels = [];
+    const values = [];
+    for (let d = 1; d <= info.diasNoMes; d++) {
+      const pad = String(d).padStart(2, '0');
+      const iso = info.ano + '-' + String(info.mes).padStart(2, '0') + '-' + pad;
+      labels.push(String(d));
+      values.push(m.porDia[iso] || 0);
+    }
+    if (_rmChart) { try { _rmChart.destroy(); } catch (e) {} _rmChart = null; }
+    try {
+      _rmChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: 'Ativos', data: values, backgroundColor: 'rgba(6, 182, 212, 0.75)', borderRadius: 3 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#94A3B8', font: { size: 9 } }, grid: { display: false } },
+            y: { ticks: { color: '#94A3B8', font: { size: 9 } }, grid: { color: 'rgba(148,163,184,0.08)' }, beginAtZero: true }
+          }
+        }
+      });
+    } catch (e) { console.error('Chart falhou:', e); }
+  }
+  // Guarda contexto pra exportações
+  window._rmContext = { info, invents, metricas: m };
+  showScreen('screen-relatorio-mensal');
+}
+
+function gerarMensagemWhatsAppMensal() {
+  const ctx = window._rmContext;
+  if (!ctx) return '';
+  const m = ctx.metricas;
+  const info = ctx.info;
+  const linhas = [];
+  linhas.push('📋 *RELATÓRIO MENSAL DE INVENTÁRIO*');
+  linhas.push('▪ ' + info.label);
+  linhas.push('▪ Empresa: ' + ((APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'OpenInvTI'));
+  linhas.push('─────────────────');
+  linhas.push('*MÉTRICAS*');
+  linhas.push('▪ ' + m.totalInventarios + ' inventário(s) realizados');
+  linhas.push('▪ ' + m.totalAtivos + ' ativo(s) contabilizados');
+  linhas.push('▪ ' + m.totalSetores + ' setor(es) cobertos');
+  linhas.push('▪ ' + m.totalAnalistas + ' analista(s) envolvidos');
+  if (m.porSetor.length > 0) {
+    linhas.push('');
+    linhas.push('*TOP SETORES (por ativos)*');
+    m.porSetor.slice(0, 5).forEach(([nome, val], i) => {
+      linhas.push((i+1) + '. ' + nome + ' — ' + val + ' ativos');
+    });
+  }
+  if (m.tipos.length > 0) {
+    linhas.push('');
+    linhas.push('*DISTRIBUIÇÃO POR TIPO*');
+    m.tipos.slice(0, 6).forEach(([tipo, val]) => {
+      linhas.push('▪ ' + tipo + ': ' + val);
+    });
+  }
+  linhas.push('');
+  linhas.push('_OpenInvTI v' + APP_VERSION + ' · ' + APP_TAGLINE + '_');
+  return linhas.join('\n');
+}
+
+async function exportarRelatorioMensalWA() {
+  const texto = gerarMensagemWhatsAppMensal();
+  if (!texto) { toast('Sem dados pra exportar.', 3000); return; }
+  const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(texto);
+  try { window.open(url, '_blank'); }
+  catch (e) { try { navigator.share && navigator.share({ text: texto }); } catch(e2){} }
+}
+
+async function exportarRelatorioMensalExcel() {
+  const ctx = window._rmContext;
+  if (!ctx) { toast('Sem dados.', 3000); return; }
+  const m = ctx.metricas;
+  const info = ctx.info;
+  if (typeof ExcelJS === 'undefined') { toast('ExcelJS não carregou.', 3500); return; }
+  const wb = new ExcelJS.Workbook();
+  const wsR = wb.addWorksheet('Resumo');
+  wsR.addRow(['RELATÓRIO MENSAL - ' + info.label]).font = { bold: true, size: 14 };
+  wsR.addRow([]);
+  wsR.addRow(['Inventários realizados', m.totalInventarios]);
+  wsR.addRow(['Ativos contabilizados', m.totalAtivos]);
+  wsR.addRow(['Setores cobertos', m.totalSetores]);
+  wsR.addRow(['Analistas envolvidos', m.totalAnalistas]);
+  wsR.addRow([]);
+  wsR.addRow(['TOP SETORES']).font = { bold: true };
+  m.porSetor.forEach(([nome, val]) => wsR.addRow([nome, val]));
+  wsR.addRow([]);
+  wsR.addRow(['DISTRIBUIÇÃO POR TIPO']).font = { bold: true };
+  m.tipos.forEach(([tipo, val]) => wsR.addRow([tipo, val]));
+  // Aba com todos os ativos
+  const wsA = wb.addWorksheet('Ativos');
+  wsA.columns = [
+    { header: 'Data', key: 'data', width: 12 },
+    { header: 'Setor', key: 'setor', width: 24 },
+    { header: 'Tipo', key: 'tipo', width: 14 },
+    { header: 'Marca', key: 'marca', width: 14 },
+    { header: 'Modelo', key: 'modelo', width: 20 },
+    { header: 'Patrimônio', key: 'pat', width: 16 },
+    { header: 'Série', key: 'serie', width: 20 },
+    { header: 'Usuário', key: 'user', width: 24 },
+    { header: 'Ramal', key: 'ramal', width: 10 },
+    { header: 'Obs', key: 'obs', width: 30 },
+  ];
+  wsA.getRow(1).font = { bold: true };
+  for (const h of ctx.invents) {
+    for (const it of (h.items || [])) {
+      wsA.addRow({
+        data: fmtDateBR(h.data), setor: h.setor || '-',
+        tipo: it.tipo || '', marca: it.marca || '', modelo: it.modelo || '',
+        pat: it.patrimonio || '', serie: it.serie || '',
+        user: it.usuario || '', ramal: it.ramal || '', obs: it.obs || ''
+      });
+    }
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'Relatorio-Mensal_' + info.ano + '-' + String(info.mes).padStart(2, '0') + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Excel mensal gerado!', 3000);
+}
+
+async function exportarRelatorioMensalPDF() {
+  const ctx = window._rmContext;
+  if (!ctx) { toast('Sem dados.', 3000); return; }
+  const m = ctx.metricas;
+  const info = ctx.info;
+  const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  if (!jsPDFCtor) { toast('jsPDF não carregou.', 3500); return; }
+  const doc = new jsPDFCtor();
+  doc.setFontSize(18); doc.setTextColor(30);
+  doc.text('Relatório Mensal - ' + info.label, 14, 18);
+  doc.setFontSize(11); doc.setTextColor(90);
+  doc.text('Empresa: ' + ((APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'OpenInvTI'), 14, 26);
+  doc.text('Gerado em: ' + fmtDateBR(todayIso()), 14, 32);
+  // Métricas em box
+  doc.setFillColor(232, 244, 248); doc.rect(14, 38, 182, 24, 'F');
+  doc.setFontSize(11); doc.setTextColor(30);
+  doc.text('Inventários: ' + m.totalInventarios, 20, 48);
+  doc.text('Ativos: ' + m.totalAtivos, 90, 48);
+  doc.text('Setores: ' + m.totalSetores, 20, 58);
+  doc.text('Analistas: ' + m.totalAnalistas, 90, 58);
+  // Insere gráfico como imagem (se Chart.js rodou)
+  let y = 72;
+  if (_rmChart) {
+    try {
+      const img = _rmChart.toBase64Image();
+      doc.addImage(img, 'PNG', 14, y, 180, 60);
+      y += 66;
+    } catch (e) {}
+  }
+  doc.setFontSize(13); doc.setTextColor(30);
+  doc.text('Top setores', 14, y); y += 6;
+  doc.setFontSize(10);
+  m.porSetor.slice(0, 5).forEach(([nome, val], i) => {
+    if (y > 270) { doc.addPage(); y = 15; }
+    doc.text((i+1) + '. ' + nome + ' - ' + val + ' ativo(s)', 18, y); y += 5;
+  });
+  y += 4;
+  doc.setFontSize(13);
+  doc.text('Distribuição por tipo', 14, y); y += 6;
+  doc.setFontSize(10);
+  m.tipos.forEach(([tipo, val]) => {
+    if (y > 270) { doc.addPage(); y = 15; }
+    doc.text('- ' + tipo + ': ' + val, 18, y); y += 5;
+  });
+  y += 4;
+  if (y > 240) { doc.addPage(); y = 15; }
+  doc.setFontSize(13);
+  doc.text('Inventários do mês', 14, y); y += 6;
+  doc.setFontSize(9);
+  const ord = ctx.invents.slice().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
+  ord.forEach(h => {
+    if (y > 275) { doc.addPage(); y = 15; }
+    const linha = fmtDateBR(h.data) + '  |  ' + (h.setor || '-') + '  |  ' + (h.totalItens || 0) + ' ativo(s)' +
+                  (h.analista ? '  |  ' + h.analista : '');
+    doc.text(linha, 18, y); y += 5;
+  });
+  doc.save('Relatorio-Mensal_' + info.ano + '-' + String(info.mes).padStart(2, '0') + '.pdf');
+  toast('PDF mensal gerado!', 3000);
+}
+
 
 window.addEventListener('keydown', function(e) {
   if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;

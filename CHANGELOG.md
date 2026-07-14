@@ -2,6 +2,42 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.7.0] - 2026-07-14 (MINOR — Relatório Mensal do último mês fechado)
+
+### 📅 Card "MÊS FECHADO" no dashboard
+
+Novo card em destaque no topo da tela inicial (aparece só quando existe pelo menos 1 inventário arquivado no mês anterior). Mostra 4 métricas do último mês completo:
+
+- **Inventários** realizados
+- **Ativos** contabilizados
+- **Setores** cobertos
+- **Analistas** envolvidos
+
+Botão `Ver relatório →` abre a tela completa.
+
+### 📊 Tela "Relatório Mensal" completa
+
+Nova tela `screen-relatorio-mensal` com:
+
+1. **Título grande** com nome do mês e ano
+2. **4 métricas destacadas** (mesmo estilo do resumo executivo)
+3. **Gráfico de evolução dia-a-dia** — barras via Chart.js mostrando quantos ativos foram cadastrados em cada dia do mês
+4. **Top 5 setores** — barras horizontais com quantidade de ativos por setor
+5. **Distribuição por tipo** — CPUs, Monitores, Impressoras, etc, também em barras
+6. **Timeline dos inventários** — lista clicável de cada inventário do mês, drill-down pra ver dispositivos
+
+### 📤 3 formatos de exportação do relatório mensal
+
+- **WhatsApp executivo** (`gerarMensagemWhatsAppMensal`) — mensagem formatada estilo boletim, com métricas, TOP setores e distribuição por tipo. Envia via `api.whatsapp.com/send`.
+- **Excel consolidado** (`exportarRelatorioMensalExcel`) — arquivo `Relatorio-Mensal_AAAA-MM.xlsx` com 2 abas: **Resumo** (métricas + TOP setores + tipos) e **Ativos** (todos os itens do mês, coluna Data + Setor + campos padrão).
+- **PDF apresentação** (`exportarRelatorioMensalPDF`) — arquivo `Relatorio-Mensal_AAAA-MM.pdf` com capa (empresa + data), box com métricas em destaque, gráfico de evolução embutido via `chart.toBase64Image()`, TOP setores, distribuição por tipo e lista dos inventários. Pronto pra levar pra reunião.
+
+### 🎯 Como usar
+
+Todo dia 1º de mês, o card muda automaticamente pra mostrar o mês recém-fechado. É só o analista tocar em `Ver relatório` no dashboard, e todos os dados do mês passado ficam à mão. Exporta pelo formato que precisar.
+
+Base de dados: o cálculo agrega tudo de `STATE.historicoSessoes[]` filtrando por `data` dentro do range `primeiroDiaDoMes..ultimoDiaDoMes`.
+
 ## [1.6.3] - 2026-07-14 (PATCH — Card HOJE + auto-reset diário + fix zerar + ícone posto)
 
 ### 🌅 Card "HOJE" no dashboard
