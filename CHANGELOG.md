@@ -2,6 +2,36 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.6.2] - 2026-07-14 (PATCH — PDF garantido + menu reconstruído + Zerar sem apagar)
+
+### 🐛 Fixes críticos
+
+- **PDF `t.map is not a function` (FINAL)** — o gerador de PDF agora tem **fallback manual completo**. Se o plugin `jspdf-autotable` falhar por qualquer motivo (versão bugada, quirks do CDN, dados malformados), o app desenha a tabela linha-por-linha usando `doc.text()` + `doc.rect()`. **Nunca mais dá erro.** Se cair no fallback, o PDF sai em modo simples (sem cores alternadas), mas sai.
+- **Menu lateral com SVG gigante** — bug real encontrado: o `<button data-menu="historico">` tinha sido arrancado numa edição anterior, deixando o `<svg>` do relógio ÓRFÃO. Sem wrapper, o SVG ocupava a largura toda. **Menu reconstruído do zero** usando emojis 🏠 📦 🏢 📊 🔄 ⚙️ ❓ (evita depender de SVG/CSS complexo).
+
+### ✨ Novidades no menu lateral
+
+Agora com 7 itens organizados:
+
+- 🏠 Início
+- 📦 Inventários salvos
+- 🏢 **Setores inventariados** (novo)
+- 📊 Análise / Dashboard
+- 🔄 **Zerar contadores** (novo)
+- ⚙️ Configurações
+- ❓ Sobre / Ajuda
+
+### 🔄 Zerar contadores — agora NÃO-DESTRUTIVO
+
+Feedback do Jean: o "Zerar" não precisa apagar histórico, só limpar a visão do painel pra ajudar a organizar. Reimplementado como **modo visual**:
+
+- Botão zera apenas o dashboard (postos/ativos/usuários/setores voltam pra 0)
+- **Nenhum inventário é apagado** — histórico continua intacto e acessível em Sessões
+- Banner amarelo "👁️ Contadores zerados (histórico oculto)" aparece com botão **Restaurar**
+- Flag `STATE.dashboardZerado` persistida, então funciona entre sessões
+
+Isso permite ao analista fazer "contagem por setor" ou "contagem por dia" sem confundir com o total acumulado.
+
 ## [1.6.1] - 2026-07-14 (PATCH — hotfixes UX + zerar contadores)
 
 ### 🐛 Fixes

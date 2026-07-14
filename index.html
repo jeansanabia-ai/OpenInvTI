@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.1</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.6.2</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -122,6 +122,13 @@
         <div class="hero-glow"></div>
         <h2 class="hero-title">Bem-vindo ao <span class="brand">OpenInvTI</span></h2>
         <p class="hero-sub">Inventário de TI Inteligente · IA · OCR · Open Source</p>
+      </div>
+
+      <!-- v1.6.2: banner "contadores zerados" (aparece quando modo organização ativo) -->
+      <div id="bannerZerado" style="display:none;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:10px;font-size:13px;color:#FCD34D">
+        <span style="font-size:18px">👁️</span>
+        <span style="flex:1">Contadores zerados (histórico oculto)</span>
+        <button type="button" id="btnRestaurarContadores" style="background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#FCD34D;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Restaurar</button>
       </div>
 
       <div class="dash-grid dash-grid-4">
@@ -554,28 +561,37 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.6.1</p>
+          <p>Gestão de Ativos de TI · v1.6.2</p>
         </div>
       </div>
       <div class="side-menu-list">
         <button type="button" class="side-menu-item active" data-menu="home">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
-          Home
+          <span class="smi-emoji">🏠</span>
+          <span class="smi-label">Início</span>
         </button>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
-          Inventários salvos
+        <button type="button" class="side-menu-item" data-menu="historico">
+          <span class="smi-emoji">📦</span>
+          <span class="smi-label">Inventários salvos</span>
+        </button>
+        <button type="button" class="side-menu-item" data-menu="setores">
+          <span class="smi-emoji">🏢</span>
+          <span class="smi-label">Setores inventariados</span>
         </button>
         <button type="button" class="side-menu-item" data-menu="analise">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/></svg>
-          Análise / Dashboard
+          <span class="smi-emoji">📊</span>
+          <span class="smi-label">Análise / Dashboard</span>
+        </button>
+        <button type="button" class="side-menu-item" data-menu="zerar">
+          <span class="smi-emoji">🔄</span>
+          <span class="smi-label">Zerar contadores</span>
         </button>
         <button type="button" class="side-menu-item" data-menu="config">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          Configurações
+          <span class="smi-emoji">⚙️</span>
+          <span class="smi-label">Configurações</span>
         </button>
         <button type="button" class="side-menu-item" data-menu="ajuda">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          Sobre / Ajuda
+          <span class="smi-emoji">❓</span>
+          <span class="smi-label">Sobre / Ajuda</span>
         </button>
       </div>
       <div class="side-menu-footer">

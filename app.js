@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.6.1';
+const APP_VERSION = '1.6.2';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -413,6 +413,27 @@ function updateDashboard() {
   const dashUsr = document.getElementById('dashUsuarios');
   const dashSet = document.getElementById('dashSetores'); // v1.6.0 #02: novo card
   if (!dashSes && !dashItn && !dashUsr) return;
+  // v1.6.2: se contadores zerados (visualmente), mostra 0 em tudo
+  if (STATE.dashboardZerado) {
+    if (dashSes) dashSes.textContent = 0;
+    if (dashItn) dashItn.textContent = 0;
+    if (dashUsr) dashUsr.textContent = 0;
+    if (dashSet) dashSet.textContent = 0;
+    // mostra banner com botão restaurar
+    const banner = document.getElementById('bannerZerado');
+    if (banner) banner.style.display = 'flex';
+    const btnZ = document.getElementById('btnZerarContadores');
+    if (btnZ) btnZ.style.display = 'none';
+    // Ainda controla botões de retomar/arquivar normalmente
+    const btnArqDash = document.getElementById('btnArquivarDash');
+    if (btnArqDash) btnArqDash.style.display = ((STATE.items || []).length > 0) ? 'block' : 'none';
+    return;
+  }
+  const banner = document.getElementById('bannerZerado');
+  if (banner) banner.style.display = 'none';
+  const btnZ = document.getElementById('btnZerarContadores');
+  if (btnZ) btnZ.style.display = '';
+
   const sessoes = new Set();
   const usuarios = new Set();
   const setores = new Set(); // v1.6.0 #02
@@ -3526,6 +3547,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         btn.classList.add('active');
         if (acao === 'home') showScreen('screen-start');
         else if (acao === 'historico') { try { abrirHistoricoModal('sessoes'); } catch (e) { toast('Histórico indisponível.', 3000); } }
+        else if (acao === 'setores') { try { abrirHistoricoModal('setores'); } catch (e) { toast('Setores indisponíveis.', 3000); } }
+        else if (acao === 'zerar') { try { zerarContadoresDashboard(); } catch (e) { toast('Erro ao zerar.', 3000); } }
         else if (acao === 'analise') { try { abrirDashboardAnalitico(); } catch (e) { toast('Análise indisponível.', 3000); } }
         else if (acao === 'config') {
           if ($('cfgEmpresa')) $('cfgEmpresa').value = APP_CONFIG.empresa.nome || '';
@@ -4234,6 +4257,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   // v1.6.1 #05: botão "Zerar contadores" na tela home
   const btnZerar = document.getElementById('btnZerarContadores');
   if (btnZerar) btnZerar.onclick = zerarContadoresDashboard;
+  // v1.6.2: botão "Restaurar" no banner do modo zerado
+  const btnRest = document.getElementById('btnRestaurarContadores');
+  if (btnRest) btnRest.onclick = restaurarContadoresDashboard;
 
   // NOVO: Badge "última visita" quando digita setor já visitado
   const nextSetorInput = document.getElementById('nextSetor');
@@ -4335,43 +4361,83 @@ async function gerarPDF() {
     ]);
   }
 
-  // v1.6.0 #01: jspdf-autotable 3.5+ removeu doc.autoTable, agora é autoTable(doc, opts)
+  // v1.6.2: TENTA autotable, se der erro cai pro fallback manual
   const _autoTableFn = (typeof window.autoTable === 'function') ? window.autoTable
                      : (typeof doc.autoTable === 'function') ? doc.autoTable.bind(doc)
                      : null;
-  if (!_autoTableFn) throw new Error('Plugin jspdf-autotable nao carregou. Verifique a conexao de internet.');
 
-  // Usa formato "columns" (mais robusto que head array-of-array em 3.8+)
-  const colunas = [
-    { header: '#',          dataKey: 'n' },
-    { header: 'Tipo',       dataKey: 'tipo' },
-    { header: 'Marca',      dataKey: 'marca' },
-    { header: 'Modelo',     dataKey: 'modelo' },
-    { header: 'Patrimonio', dataKey: 'pat' },
-    { header: 'Serie',      dataKey: 'ser' },
-    { header: 'Usuario',    dataKey: 'usu' },
-    { header: 'Ramal',      dataKey: 'ram' },
-    { header: 'Obs',        dataKey: 'obs' },
-  ];
-  const bodyObj = linhas.map(l => ({
-    n: l[0], tipo: l[1], marca: l[2], modelo: l[3], pat: l[4],
-    ser: l[5], usu: l[6], ram: l[7], obs: l[8]
-  }));
-  _autoTableFn(doc, {
-    startY: 28,
-    columns: colunas,
-    body: bodyObj,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' },
-    alternateRowStyles: { fillColor: [240, 247, 252] },
-    columnStyles: { n: { halign: 'center', cellWidth: 10 }, ram: { halign: 'center' } },
-  });
+  let autoTableOK = false;
+  if (_autoTableFn) {
+    try {
+      _autoTableFn(doc, {
+        startY: 28,
+        head: [['#', 'Tipo', 'Marca', 'Modelo', 'Patrimonio', 'Serie', 'Usuario', 'Ramal', 'Obs']],
+        body: linhas,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [240, 247, 252] },
+      });
+      autoTableOK = true;
+    } catch (e) {
+      console.warn('autotable falhou, usando fallback manual:', e);
+    }
+  }
+
+  if (!autoTableOK) {
+    // v1.6.2: fallback manual — desenha a tabela linha por linha
+    let y = 32;
+    const pageH = doc.internal.pageSize.getHeight();
+    const pageW = doc.internal.pageSize.getWidth();
+    const marginLeft = 8;
+    // Colunas (largura em mm)
+    const colDefs = [
+      { label: '#',     w: 8  },
+      { label: 'Tipo',  w: 20 },
+      { label: 'Marca', w: 20 },
+      { label: 'Modelo', w: 28 },
+      { label: 'Patrim.', w: 24 },
+      { label: 'Serie',  w: 26 },
+      { label: 'Usuario', w: 34 },
+      { label: 'Ramal',  w: 14 },
+      { label: 'Obs',    w: 28 },
+    ];
+    function drawHeader() {
+      doc.setFillColor(14, 165, 233);
+      doc.setTextColor(255);
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'bold');
+      let x = marginLeft;
+      const h = 6;
+      colDefs.forEach(c => { doc.rect(x, y, c.w, h, 'F'); doc.text(c.label, x + 1.5, y + 4); x += c.w; });
+      y += h;
+      doc.setFont(undefined, 'normal');
+      doc.setTextColor(30);
+    }
+    drawHeader();
+    linhas.forEach((row, idx) => {
+      if (y > pageH - 15) { doc.addPage(); y = 15; drawHeader(); }
+      if (idx % 2 === 1) {
+        let xBg = marginLeft;
+        doc.setFillColor(240, 247, 252);
+        colDefs.forEach(c => { doc.rect(xBg, y, c.w, 5, 'F'); xBg += c.w; });
+      }
+      let x = marginLeft;
+      row.forEach((cell, i) => {
+        const txt = String(cell || '');
+        const maxLen = Math.floor(colDefs[i].w * 1.5);
+        const short = txt.length > maxLen ? txt.slice(0, maxLen - 1) + '…' : txt;
+        doc.text(short, x + 1.5, y + 3.5);
+        x += colDefs[i].w;
+      });
+      y += 5;
+    });
+  }
 
   // v1.0.11: formato AAAA-MM-DD_NomeDoSetor.pdf
   const nomeSet = (STATE.setor || 'Setor').replace(/[^a-zA-Z0-9_-]/g, '_');
   const dataIso = (STATE.data || todayIso());
   doc.save(dataIso + '_' + nomeSet + '.pdf');
-  toast('PDF gerado!');
+  toast('PDF gerado!' + (autoTableOK ? '' : ' (modo simples)'), 3000);
 }
 
 // ============================================================
@@ -4721,65 +4787,5 @@ function abrirModalEditarCabecalho() {
   setTimeout(function() { var t = document.getElementById('mecTitulo'); if (t) t.focus(); }, 50);
 }
 
-// v1.6.1: zerar contadores do dashboard (arquiva atual + APAGA histórico contábil)
-async function zerarContadoresDashboard() {
-  const totalHist = (STATE.historicoSessoes || []).length;
-  const totalAtual = (STATE.items || []).length;
-  if (totalHist === 0 && totalAtual === 0) {
-    toast('Contadores já estão zerados.', 3000);
-    return;
-  }
-  var msg = 'ZERAR CONTADORES DO DASHBOARD?\n\n';
-  msg += 'Postos, Ativos, Usuarios e Setores voltam pra ZERO.\n\n';
-  if (totalAtual > 0) msg += '- ' + totalAtual + ' ativo(s) do inventario ATUAL serao arquivados primeiro.\n';
-  if (totalHist > 0)  msg += '- ' + totalHist + ' inventario(s) arquivado(s) sao APAGADOS.\n\n';
-  msg += 'Recomendado: baixar planilha/PDF dos arquivados antes.\n\n';
-  msg += 'Esta acao NAO PODE ser desfeita. Confirma?';
-  if (!confirm(msg)) return;
-  // arquiva o atual se houver
-  if (totalAtual > 0) {
-    try { arquivarInventarioAtual(); } catch (e) {}
-  }
-  // apaga histórico
-  STATE.historicoSessoes = [];
-  STATE.items = [];
-  STATE.data = '';
-  STATE.setor = '';
-  STATE.titulo = '';
-  STATE.editingId = null;
-  window._lastPlanilhaBlob = null;
-  window._lastPlanilhaBuf = null;
-  window._lastPdfBlob = null;
-  try { await saveState(); } catch (e) {}
-  if (typeof updateTopbar === 'function') updateTopbar();
-  if (typeof updateDashboard === 'function') updateDashboard();
-  if ($('btnResume')) $('btnResume').style.display = 'none';
-  if ($('btnArquivarDash')) $('btnArquivarDash').style.display = 'none';
-  toast('✓ Contadores zerados. Comece um novo inventário do zero.', 4000);
-  showScreen('screen-start');
-}
-
-window.addEventListener('keydown', function(e) {
-  if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
-  if (e.key === 'Enter' && document.querySelector('#screen-wizard.active')) {
-    e.preventDefault();
-    var btn = document.getElementById('wizNext');
-    if (btn) btn.click();
-  }
-  if (e.key === 'Escape') {
-    var modal = document.getElementById('historyModal') || document.getElementById('downloadFeedbackModal') || document.getElementById('iaSuggestModal') || document.getElementById('modalEditarCab');
-    if (modal) modal.remove();
-  }
-  if (e.ctrlKey && e.key === 's') {
-    e.preventDefault();
-    if (typeof saveState === 'function') saveState();
-    if (typeof mostrarIndicadorSave === 'function') mostrarIndicadorSave('Salvo (manual)', 'ok');
-  }
-});
-
-window.addEventListener('beforeunload', function(e) {
-  if (STATE.items && STATE.items.length > 0) {
-    e.preventDefault();
-    e.returnValue = '';
-  }
-});
+// v1.6.2: zerar contadores do dashboard — SÓ VISUALMENTE (não apaga nada)
+// O histórico continua in
