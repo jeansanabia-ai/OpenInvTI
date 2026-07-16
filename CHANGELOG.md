@@ -2,6 +2,32 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.8.0] - 2026-07-15 (MINOR — Redesenho do painel + Setores editável + Dispositivos + PDF executivo)
+
+Redesenho grande do dashboard focado em experiência, navegação e exportação executiva.
+
+### 🎛️ Painel unificado com abas de período
+Os 3 cards empilhados (Mês fechado, Hoje, 4 métricas) viraram **um painel único** com toggle `Hoje · Este mês · Acumulado`. As 4 métricas (Postos / Ativos / Setores / Usuários) e o mini-gráfico de 14 dias se atualizam conforme o período escolhido. A preferência de aba fica salva. Cada métrica é clicável (drill-down).
+
+Isso resolve o dado do dia E o acumulado no mesmo lugar — e **substituiu o botão "Zerar contadores"**, que ficou desnecessário (removido junto com o card Hoje, o card Mês e o banner de zerado).
+
+### 🏢 Setores editável (consultar + renomear + mesclar)
+Nova tela cheia (não mais lista morta). Cada setor mostra nº de inventários, ativos e última visita, com 3 ações:
+- **Consultar** — abre o catálogo de dispositivos filtrado por aquele setor
+- **Renomear** — corrige o nome em todos os registros de uma vez (atual + arquivados)
+- **Mesclar** — junta setores duplicados escritos diferente ("Lab predio 70" → "Laboratório prédio 70") num só
+
+Tem busca no topo.
+
+### 🗂️ Catálogo de Dispositivos (registro central)
+Tela nova com **todos os ativos já inventariados** num só lugar, pesquisável por patrimônio, série, usuário, tipo, setor ou ramal. Filtros por tipo (chips). Exportação Excel do resultado filtrado. É o "lugar pra manter os dispositivos" — dá pra achar "aquele monitor da Clara" na hora.
+
+### 📄 PDF executivo redesenhado
+O relatório mensal em PDF agora é uma **apresentação**: capa com faixa colorida e identidade, 4 KPI-cards visuais, gráfico de evolução embutido, barras de top setores e distribuição por tipo (desenhadas), tabela de inventários e rodapé paginado. Pronto pra levar pra reunião com gestor.
+
+### 🧭 Navegação
+Dois atalhos grandes no dashboard (Setores / Dispositivos) e menu lateral atualizado (🗂️ Dispositivos no lugar de Zerar contadores).
+
 ## [1.7.0] - 2026-07-14 (MINOR — Relatório Mensal do último mês fechado)
 
 ### 📅 Card "MÊS FECHADO" no dashboard

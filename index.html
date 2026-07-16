@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.7.0</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.8.0</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -124,88 +124,39 @@
         <p class="hero-sub">Inventário de TI Inteligente · IA · OCR · Open Source</p>
       </div>
 
-      <!-- v1.6.2: banner "contadores zerados" (aparece quando modo organização ativo) -->
-      <div id="bannerZerado" style="display:none;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:10px;padding:10px 14px;margin-bottom:12px;align-items:center;gap:10px;font-size:13px;color:#FCD34D">
-        <span style="font-size:18px">👁️</span>
-        <span style="flex:1">Contadores zerados (histórico oculto)</span>
-        <button type="button" id="btnRestaurarContadores" style="background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#FCD34D;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Restaurar</button>
+      <!-- v1.8.0: Painel unificado com abas de período (Hoje / Mês / Acumulado) -->
+      <div class="painel-card">
+        <div class="painel-tabs" id="painelTabs">
+          <button type="button" class="painel-tab" data-periodo="hoje">Hoje</button>
+          <button type="button" class="painel-tab active" data-periodo="mes">Este mês</button>
+          <button type="button" class="painel-tab" data-periodo="total">Acumulado</button>
+        </div>
+        <div class="painel-sub" id="painelSub">Julho / 2026</div>
+        <div class="painel-grid">
+          <div class="painel-tile" data-dash="postos"><div class="painel-tile-lbl">Postos</div><div class="painel-tile-val" id="dashSessoes">0</div></div>
+          <div class="painel-tile" data-dash="itens"><div class="painel-tile-lbl">Ativos</div><div class="painel-tile-val" id="dashItens">0</div></div>
+          <div class="painel-tile" data-dash="setores"><div class="painel-tile-lbl">Setores</div><div class="painel-tile-val" id="dashSetores">0</div></div>
+          <div class="painel-tile" data-dash="usuarios"><div class="painel-tile-lbl">Usuários</div><div class="painel-tile-val" id="dashUsuarios">0</div></div>
+        </div>
+        <div class="painel-chart-wrap"><canvas id="painelChart"></canvas></div>
+        <button type="button" class="painel-relatorio-btn" id="btnVerRelatorioMensal">
+          <span>📄 Relatório executivo do mês</span>
+          <span class="painel-relatorio-arrow">→</span>
+        </button>
       </div>
 
-      <!-- v1.7.0: Card MÊS FECHADO — consolidado do último mês inteiro -->
-      <div class="mes-card" id="mesCard" style="display:none">
-        <div class="mes-head">
-          <div class="mes-title-group">
-            <span class="mes-emoji">📅</span>
-            <div>
-              <div class="mes-label" id="mesLabel">MÊS FECHADO</div>
-              <div class="mes-hint">Consolidado do último mês completo</div>
-            </div>
-          </div>
-          <button type="button" class="mes-ver-btn" id="btnVerRelatorioMensal">Ver relatório →</button>
-        </div>
-        <div class="mes-grid">
-          <div class="mes-tile"><span class="mes-tile-value" id="mesInvents">0</span><span class="mes-tile-label">Inventários</span></div>
-          <div class="mes-tile"><span class="mes-tile-value" id="mesAtivos">0</span><span class="mes-tile-label">Ativos</span></div>
-          <div class="mes-tile"><span class="mes-tile-value" id="mesSetores">0</span><span class="mes-tile-label">Setores</span></div>
-          <div class="mes-tile"><span class="mes-tile-value" id="mesAnalistas">0</span><span class="mes-tile-label">Analistas</span></div>
-        </div>
-      </div>
-
-      <!-- v1.6.3: Card "HOJE" — mostra progresso do dia + auto-reset opcional -->
-      <div class="hoje-card" id="hojeCard">
-        <div class="hoje-head">
-          <div class="hoje-title-group">
-            <span class="hoje-emoji">☀️</span>
-            <div>
-              <div class="hoje-label">HOJE · <span id="hojeData">-</span></div>
-              <div class="hoje-hint" id="hojeHint">Trabalho do dia (todos os setores)</div>
-            </div>
-          </div>
-          <label class="hoje-toggle" title="Zerar automaticamente todo dia às 06h">
-            <input type="checkbox" id="hojeAutoReset" />
-            <span class="hoje-toggle-label">Auto-reset diário</span>
-          </label>
-        </div>
-        <div class="hoje-grid">
-          <div class="hoje-tile">
-            <span class="hoje-tile-icon">🧑‍💻</span>
-            <span class="hoje-tile-value" id="hojePostos">0</span>
-            <span class="hoje-tile-label">Postos</span>
-          </div>
-          <div class="hoje-tile">
-            <span class="hoje-tile-icon">💻</span>
-            <span class="hoje-tile-value" id="hojeAtivos">0</span>
-            <span class="hoje-tile-label">Ativos</span>
-          </div>
-          <div class="hoje-tile">
-            <span class="hoje-tile-icon">🏢</span>
-            <span class="hoje-tile-value" id="hojeSetores">0</span>
-            <span class="hoje-tile-label">Setores</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="dash-grid dash-grid-4">
-        <div class="dash-card" data-dash="postos" title="Ver postos de trabalho">
-          <div class="dash-card-icon">🧑‍💻</div>
-          <div class="dash-card-label">Postos de trabalho</div>
-          <div class="dash-card-value" id="dashSessoes">0</div>
-        </div>
-        <div class="dash-card" data-dash="itens" title="Ver ativos registrados">
-          <div class="dash-card-icon">💻</div>
-          <div class="dash-card-label">Ativos registrados</div>
-          <div class="dash-card-value" id="dashItens">0</div>
-        </div>
-        <div class="dash-card" data-dash="usuarios" title="Ver usuários">
-          <div class="dash-card-icon">👥</div>
-          <div class="dash-card-label">Usuários</div>
-          <div class="dash-card-value" id="dashUsuarios">0</div>
-        </div>
-        <div class="dash-card" data-dash="setores" title="Ver setores inventariados">
-          <div class="dash-card-icon">🏢</div>
-          <div class="dash-card-label">Setores</div>
-          <div class="dash-card-value" id="dashSetores">0</div>
-        </div>
+      <!-- Atalhos de navegação -->
+      <div class="atalhos-grid">
+        <button type="button" class="atalho-card" id="atalhoSetores">
+          <span class="atalho-icon">🏢</span>
+          <span class="atalho-titulo">Setores</span>
+          <span class="atalho-sub">consultar · editar</span>
+        </button>
+        <button type="button" class="atalho-card" id="atalhoDispositivos">
+          <span class="atalho-icon">🗂️</span>
+          <span class="atalho-titulo">Dispositivos</span>
+          <span class="atalho-sub">buscar todos</span>
+        </button>
       </div>
 
       <div class="field">
@@ -236,8 +187,6 @@
       <button class="btn btn-secondary" id="btnResume" style="display:none">↻ Retomar inventário em andamento</button>
       <!-- v1.6.0 #06: arquivar direto do dashboard (quando há inventário em andamento) -->
       <button class="btn btn-ghost" id="btnArquivarDash" style="display:none;margin-top:10px">📦 Arquivar e iniciar novo</button>
-      <!-- v1.6.1: zerar contadores (começar contagem do zero, mantendo config) -->
-      <button class="btn btn-ghost" id="btnZerarContadores" style="margin-top:10px;color:#F87171;border-color:rgba(248,113,113,0.3)" title="Apaga histórico contábil pra começar contagem nova">🔄 Zerar contadores (começar do zero)</button>
     </section>
 
     <!-- TELA 2: Lista de usuários/sessões — v1.0.10: header com Voltar + título -->
@@ -478,6 +427,31 @@
       </div>
     </section>
 
+    <!-- v1.8.0: TELA Setores (consultar + editar) -->
+    <section class="screen" id="screen-setores">
+      <div class="screen-header">
+        <button class="btn-back" id="setoresBack" aria-label="Voltar">← Voltar</button>
+        <h2 class="screen-header-title">Setores</h2>
+      </div>
+      <input type="text" id="setoresBusca" class="busca-input" placeholder="🔍 Buscar setor..." />
+      <div id="setoresLista"></div>
+    </section>
+
+    <!-- v1.8.0: TELA Dispositivos (catálogo central pesquisável) -->
+    <section class="screen" id="screen-dispositivos">
+      <div class="screen-header">
+        <button class="btn-back" id="dispBack" aria-label="Voltar">← Voltar</button>
+        <h2 class="screen-header-title">Dispositivos</h2>
+      </div>
+      <input type="text" id="dispBusca" class="busca-input" placeholder="🔍 Patrimônio, série, usuário, tipo..." />
+      <div class="disp-filtros" id="dispFiltros"></div>
+      <div class="disp-count" id="dispCount"></div>
+      <div id="dispLista"></div>
+      <div class="disp-export">
+        <button class="share-btn share-btn-xls" id="dispBtnXLS"><span class="share-btn-icon">📊</span><span class="share-btn-label">Exportar Excel</span></button>
+      </div>
+    </section>
+
     <!-- TELA 4: Finalizar — v1.0.10: resumo executivo moderno + ações reorganizadas -->
     <section class="screen" id="screen-finish">
       <!-- Card principal: cabeçalho do inventário -->
@@ -667,7 +641,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.7.0</p>
+          <p>Gestão de Ativos de TI · v1.8.0</p>
         </div>
       </div>
       <div class="side-menu-list">
@@ -687,9 +661,9 @@
           <span class="smi-emoji">📊</span>
           <span class="smi-label">Análise / Dashboard</span>
         </button>
-        <button type="button" class="side-menu-item" data-menu="zerar">
-          <span class="smi-emoji">🔄</span>
-          <span class="smi-label">Zerar contadores</span>
+        <button type="button" class="side-menu-item" data-menu="dispositivos">
+          <span class="smi-emoji">🗂️</span>
+          <span class="smi-label">Dispositivos</span>
         </button>
         <button type="button" class="side-menu-item" data-menu="config">
           <span class="smi-emoji">⚙️</span>
@@ -717,3 +691,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          

@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -411,73 +411,122 @@ function updateDashboard() {
   const dashSes = document.getElementById('dashSessoes');
   const dashItn = document.getElementById('dashItens');
   const dashUsr = document.getElementById('dashUsuarios');
-  const dashSet = document.getElementById('dashSetores'); // v1.6.0 #02: novo card
+  const dashSet = document.getElementById('dashSetores');
   if (!dashSes && !dashItn && !dashUsr) return;
-  // v1.6.2: se contadores zerados (visualmente), mostra 0 em tudo
-  if (STATE.dashboardZerado) {
-    if (dashSes) dashSes.textContent = 0;
-    if (dashItn) dashItn.textContent = 0;
-    if (dashUsr) dashUsr.textContent = 0;
-    if (dashSet) dashSet.textContent = 0;
-    // mostra banner com botão restaurar
-    const banner = document.getElementById('bannerZerado');
-    if (banner) banner.style.display = 'flex';
-    const btnZ = document.getElementById('btnZerarContadores');
-    if (btnZ) btnZ.style.display = 'none';
-    // Ainda controla botões de retomar/arquivar normalmente
-    const btnArqDash = document.getElementById('btnArquivarDash');
-    if (btnArqDash) btnArqDash.style.display = ((STATE.items || []).length > 0) ? 'block' : 'none';
-    return;
-  }
-  const banner = document.getElementById('bannerZerado');
-  if (banner) banner.style.display = 'none';
-  const btnZ = document.getElementById('btnZerarContadores');
-  if (btnZ) btnZ.style.display = '';
 
-  const sessoes = new Set();
-  const usuarios = new Set();
-  const setores = new Set(); // v1.6.0 #02
-  for (const it of (STATE.items || [])) {
-    if (it.sessionId) sessoes.add(it.sessionId);
-    else sessoes.add('legacy-' + (it.usuario || ''));
-    if (it.usuario) usuarios.add(it.usuario);
-  }
-  if (STATE.setor) setores.add(STATE.setor);
-  let totSessoes = sessoes.size;
-  let totItens = (STATE.items || []).length;
-  let totUsuarios = usuarios.size;
-  const usuariosUnicos = new Set(usuarios);
-  for (const h of (STATE.historicoSessoes || [])) {
-    totSessoes += (h.totalSessoes || 0);
-    totItens += (h.totalItens || 0);
-    if (Array.isArray(h.usuarios)) for (const u of h.usuarios) usuariosUnicos.add(u);
-    if (h.setor) setores.add(h.setor);
-  }
-  totUsuarios = usuariosUnicos.size;
-  if (dashSes) dashSes.textContent = totSessoes;
-  if (dashItn) dashItn.textContent = totItens;
-  if (dashUsr) dashUsr.textContent = totUsuarios;
-  if (dashSet) dashSet.textContent = setores.size; // v1.6.0 #02
-  // v1.6.0 #06: botão "Arquivar" no dashboard só aparece se há inventário em andamento
+  const periodo = STATE.painelPeriodo || 'mes';
+  const m = calcularMetricasPainel(periodo);
+
+  if (dashSes) dashSes.textContent = m.postos;
+  if (dashItn) dashItn.textContent = m.ativos;
+  if (dashUsr) dashUsr.textContent = m.usuarios;
+  if (dashSet) dashSet.textContent = m.setores;
+
+  const sub = document.getElementById('painelSub');
+  if (sub) sub.textContent = m.subtitulo;
+
+  // botão "Arquivar" só aparece se há inventário em andamento
   const btnArqDash = document.getElementById('btnArquivarDash');
   if (btnArqDash) btnArqDash.style.display = ((STATE.items || []).length > 0) ? 'block' : 'none';
-  // v1.6.3: atualiza card HOJE (contadores do dia corrente)
-  try { atualizarCardHoje(); } catch (e) { console.warn('Erro card Hoje:', e); }
-  // v1.7.0: atualiza card MÊS FECHADO
-  try { atualizarCardMesFechado(); } catch (e) { console.warn('Erro card Mês:', e); }
-  // v1.6.0 #02: cards clicáveis usando data-dash (mais robusto que indice)
-  const cards = document.querySelectorAll('#screen-start .dash-card');
+
+  // tiles clicáveis (drill-down)
+  const tiles = document.querySelectorAll('#screen-start .painel-tile');
   const mapAcao = { postos: 'sessoes', itens: 'itens', usuarios: 'usuarios', setores: 'setores' };
-  cards.forEach((card) => {
-    if (!card.classList.contains('clickable')) {
-      card.classList.add('clickable');
-      card.setAttribute('role', 'button');
-      card.setAttribute('tabindex', '0');
-      const acao = mapAcao[card.dataset.dash] || 'sessoes';
-      card.addEventListener('click', () => abrirHistoricoModal(acao));
-      card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirHistoricoModal(acao); } });
+  tiles.forEach((t) => {
+    if (!t.classList.contains('bound')) {
+      t.classList.add('bound');
+      const acao = mapAcao[t.dataset.dash] || 'sessoes';
+      t.addEventListener('click', () => abrirHistoricoModal(acao));
     }
   });
+
+  // desenha mini-gráfico do painel
+  try { desenharPainelChart(periodo); } catch (e) { console.warn('painel chart:', e); }
+}
+
+// v1.8.0: calcula métricas por período (hoje / mes / total)
+function calcularMetricasPainel(periodo) {
+  const hojeIso = todayIso();
+  const info = getUltimoMesFechado();
+  const mesAtual = hojeIso.slice(0, 7); // YYYY-MM do mês CORRENTE
+
+  function dentro(dataIso) {
+    if (periodo === 'total') return true;
+    if (!dataIso) return false;
+    if (periodo === 'hoje') return dataIso === hojeIso;
+    if (periodo === 'mes') return dataIso.slice(0, 7) === mesAtual;
+    return true;
+  }
+
+  const postos = new Set();
+  const usuarios = new Set();
+  const setores = new Set();
+  let ativos = 0;
+
+  // inventário atual (em andamento)
+  if (dentro(STATE.data || hojeIso)) {
+    if (STATE.setor) setores.add(STATE.setor);
+    for (const it of (STATE.items || [])) {
+      if (it.sessionId) postos.add(it.sessionId); else postos.add('legacy-' + (it.usuario || ''));
+      if (it.usuario) usuarios.add(it.usuario);
+      ativos++;
+    }
+  }
+  // arquivados
+  for (const h of (STATE.historicoSessoes || [])) {
+    if (!dentro(h.data)) continue;
+    ativos += (h.totalItens || 0);
+    const nSes = h.totalSessoes || 0;
+    for (let k = 0; k < nSes; k++) postos.add((h.id || 'h') + '_s' + k);
+    if (h.setor) setores.add(h.setor);
+    if (Array.isArray(h.usuarios)) for (const u of h.usuarios) usuarios.add(u);
+  }
+
+  let subtitulo;
+  if (periodo === 'hoje') subtitulo = 'Hoje · ' + fmtDateBR(hojeIso);
+  else if (periodo === 'mes') {
+    const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    const d = new Date();
+    subtitulo = nomes[d.getMonth()] + ' / ' + d.getFullYear() + ' (mês corrente)';
+  } else subtitulo = 'Acumulado (todo o histórico)';
+
+  return { postos: postos.size, ativos, usuarios: usuarios.size, setores: setores.size, subtitulo };
+}
+
+// v1.8.0: mini-gráfico do painel (últimos 14 dias de atividade)
+let _painelChart = null;
+function desenharPainelChart(periodo) {
+  const canvas = document.getElementById('painelChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  // agrega ativos por dia nos últimos 14 dias
+  const hoje = new Date();
+  const labels = [];
+  const valores = [];
+  const porDia = {};
+  for (const h of (STATE.historicoSessoes || [])) {
+    if (h.data) porDia[h.data] = (porDia[h.data] || 0) + (h.totalItens || 0);
+  }
+  if (STATE.data) {
+    porDia[STATE.data] = (porDia[STATE.data] || 0) + (STATE.items || []).length;
+  }
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(hoje.getTime() - i * 86400000);
+    const iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    labels.push(String(d.getDate()));
+    valores.push(porDia[iso] || 0);
+  }
+  if (_painelChart) { try { _painelChart.destroy(); } catch (e) {} _painelChart = null; }
+  try {
+    _painelChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: { labels, datasets: [{ data: valores, backgroundColor: 'rgba(6,182,212,0.6)', borderRadius: 2 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+        scales: { x: { display: false }, y: { display: false, beginAtZero: true } }
+      }
+    });
+  } catch (e) { console.warn(e); }
 }
 
 // Arquiva o inventario atual no historico antes de limpar
@@ -3551,17 +3600,8 @@ window.addEventListener('DOMContentLoaded', async () => {
         btn.classList.add('active');
         if (acao === 'home') showScreen('screen-start');
         else if (acao === 'historico') { try { abrirHistoricoModal('sessoes'); } catch (e) { toast('Histórico indisponível.', 3000); } }
-        else if (acao === 'setores') { try { abrirHistoricoModal('setores'); } catch (e) { toast('Setores indisponíveis.', 3000); } }
-        else if (acao === 'zerar') {
-          // v1.6.3: navega pra home ANTES de zerar (garante que updateDashboard encontre os elementos)
-          showScreen('screen-start');
-          setTimeout(() => {
-            zerarContadoresDashboard().catch((e) => {
-              console.error('Erro ao zerar:', e);
-              toast('Erro: ' + (e.message || e), 3500);
-            });
-          }, 150);
-        }
+        else if (acao === 'setores') { try { abrirTelaSetores(); } catch (e) { console.error(e); abrirHistoricoModal('setores'); } }
+        else if (acao === 'dispositivos') { try { abrirTelaDispositivos(); } catch (e) { console.error(e); toast('Erro ao abrir dispositivos.', 3000); } }
         else if (acao === 'analise') { try { abrirDashboardAnalitico(); } catch (e) { toast('Análise indisponível.', 3000); } }
         else if (acao === 'config') {
           if ($('cfgEmpresa')) $('cfgEmpresa').value = APP_CONFIG.empresa.nome || '';
@@ -4267,12 +4307,28 @@ window.addEventListener('DOMContentLoaded', async () => {
       updateDashboard();
     };
   }
-  // v1.6.1 #05: botão "Zerar contadores" na tela home
-  const btnZerar = document.getElementById('btnZerarContadores');
-  if (btnZerar) btnZerar.onclick = zerarContadoresDashboard;
-  // v1.6.2: botão "Restaurar" no banner do modo zerado
-  const btnRest = document.getElementById('btnRestaurarContadores');
-  if (btnRest) btnRest.onclick = restaurarContadoresDashboard;
+  // v1.8.0: abas de período do painel (Hoje / Mês / Acumulado)
+  const painelTabs = document.getElementById('painelTabs');
+  if (painelTabs) {
+    painelTabs.querySelectorAll('.painel-tab').forEach((tab) => {
+      tab.onclick = () => {
+        painelTabs.querySelectorAll('.painel-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        STATE.painelPeriodo = tab.dataset.periodo;
+        try { saveState(); } catch (e) {}
+        updateDashboard();
+      };
+    });
+    // marca a aba salva
+    const per = STATE.painelPeriodo || 'mes';
+    painelTabs.querySelectorAll('.painel-tab').forEach(t => t.classList.toggle('active', t.dataset.periodo === per));
+  }
+  // v1.8.0: atalhos Setores e Dispositivos
+  const atSet = document.getElementById('atalhoSetores');
+  if (atSet) atSet.onclick = () => { try { abrirTelaSetores(); } catch (e) { console.error(e); abrirHistoricoModal('setores'); } };
+  const atDisp = document.getElementById('atalhoDispositivos');
+  if (atDisp) atDisp.onclick = () => { try { abrirTelaDispositivos(); } catch (e) { console.error(e); toast('Erro ao abrir dispositivos.', 3000); } };
+
   // v1.7.0: botão "Ver relatório mensal" + Voltar + 3 exportações
   const btnVerMes = document.getElementById('btnVerRelatorioMensal');
   if (btnVerMes) btnVerMes.onclick = () => { try { abrirTelaRelatorioMensal(); } catch (e) { console.error(e); toast('Erro no relatório mensal.', 3000); } };
@@ -4284,28 +4340,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (rmBtnXLS) rmBtnXLS.onclick = () => exportarRelatorioMensalExcel().catch(e => toast('Erro: ' + (e.message || e), 3500));
   const rmBtnPDF = document.getElementById('rmBtnPDF');
   if (rmBtnPDF) rmBtnPDF.onclick = () => exportarRelatorioMensalPDF().catch(e => toast('Erro: ' + (e.message || e), 3500));
-
-  // v1.6.3: checkbox de auto-reset diário no card Hoje
-  const chkAuto = document.getElementById('hojeAutoReset');
-  if (chkAuto) {
-    chkAuto.checked = !!STATE.autoResetDiario;
-    chkAuto.onchange = async () => {
-      STATE.autoResetDiario = chkAuto.checked;
-      try { await saveState(); } catch (e) {}
-      if (chkAuto.checked) {
-        agendarAutoReset();
-        toast('Auto-reset ligado. Vai zerar todo dia às 06h.', 4000);
-      } else {
-        if (_autoResetTimer) { clearTimeout(_autoResetTimer); _autoResetTimer = null; }
-        toast('Auto-reset desligado.', 3000);
-      }
-      atualizarCardHoje();
-    };
-  }
-  // no boot: checa se precisa reset (usuário abriu depois das 06h de um novo dia)
-  try { verificarAutoResetBoot(); } catch (e) {}
-  // agenda timer se ativo
-  try { agendarAutoReset(); } catch (e) {}
 
   // NOVO: Badge "última visita" quando digita setor já visitado
   const nextSetorInput = document.getElementById('nextSetor');
@@ -5119,58 +5153,344 @@ async function exportarRelatorioMensalPDF() {
   const jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
   if (!jsPDFCtor) { toast('jsPDF não carregou.', 3500); return; }
   const doc = new jsPDFCtor();
-  doc.setFontSize(18); doc.setTextColor(30);
-  doc.text('Relatório Mensal - ' + info.label, 14, 18);
-  doc.setFontSize(11); doc.setTextColor(90);
-  doc.text('Empresa: ' + ((APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'OpenInvTI'), 14, 26);
-  doc.text('Gerado em: ' + fmtDateBR(todayIso()), 14, 32);
-  // Métricas em box
-  doc.setFillColor(232, 244, 248); doc.rect(14, 38, 182, 24, 'F');
-  doc.setFontSize(11); doc.setTextColor(30);
-  doc.text('Inventários: ' + m.totalInventarios, 20, 48);
-  doc.text('Ativos: ' + m.totalAtivos, 90, 48);
-  doc.text('Setores: ' + m.totalSetores, 20, 58);
-  doc.text('Analistas: ' + m.totalAnalistas, 90, 58);
-  // Insere gráfico como imagem (se Chart.js rodou)
-  let y = 72;
+  const W = doc.internal.pageSize.getWidth();
+  const empresa = (APP_CONFIG.empresa && APP_CONFIG.empresa.nome) || 'OpenInvTI';
+
+  // ---- CAPA: faixa superior colorida ----
+  doc.setFillColor(15, 30, 60); doc.rect(0, 0, W, 46, 'F');
+  doc.setFillColor(6, 182, 212); doc.rect(0, 46, W, 2, 'F');
+  doc.setTextColor(255); doc.setFontSize(22); doc.setFont(undefined, 'bold');
+  doc.text('Relatório Executivo', 14, 22);
+  doc.setFontSize(13); doc.setFont(undefined, 'normal');
+  doc.text('Inventário de TI · ' + info.label, 14, 32);
+  doc.setFontSize(10); doc.setTextColor(200, 220, 235);
+  doc.text(empresa + '  ·  Gerado em ' + fmtDateBR(todayIso()), 14, 40);
+
+  // ---- KPI cards (4 blocos) ----
+  const kpis = [
+    ['Inventários', m.totalInventarios],
+    ['Ativos', m.totalAtivos],
+    ['Setores', m.totalSetores],
+    ['Analistas', m.totalAnalistas],
+  ];
+  let kx = 14; const kw = (W - 28 - 18) / 4; const ky = 56;
+  kpis.forEach(([lbl, val]) => {
+    doc.setFillColor(236, 246, 251); doc.roundedRect(kx, ky, kw, 26, 2, 2, 'F');
+    doc.setTextColor(6, 120, 150); doc.setFontSize(19); doc.setFont(undefined, 'bold');
+    doc.text(String(val), kx + kw/2, ky + 13, { align: 'center' });
+    doc.setTextColor(90); doc.setFontSize(8); doc.setFont(undefined, 'normal');
+    doc.text(String(lbl), kx + kw/2, ky + 21, { align: 'center' });
+    kx += kw + 6;
+  });
+
+  let y = 92;
+  // ---- Gráfico de evolução (imagem do Chart.js da tela) ----
   if (_rmChart) {
     try {
+      doc.setTextColor(30); doc.setFontSize(12); doc.setFont(undefined, 'bold');
+      doc.text('Evolução dia-a-dia', 14, y); y += 4;
       const img = _rmChart.toBase64Image();
-      doc.addImage(img, 'PNG', 14, y, 180, 60);
-      y += 66;
+      doc.addImage(img, 'PNG', 14, y, W - 28, 55);
+      y += 62;
     } catch (e) {}
   }
-  doc.setFontSize(13); doc.setTextColor(30);
-  doc.text('Top setores', 14, y); y += 6;
-  doc.setFontSize(10);
-  m.porSetor.slice(0, 5).forEach(([nome, val], i) => {
-    if (y > 270) { doc.addPage(); y = 15; }
-    doc.text((i+1) + '. ' + nome + ' - ' + val + ' ativo(s)', 18, y); y += 5;
+
+  // ---- Top setores (barras desenhadas manualmente) ----
+  doc.setTextColor(30); doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('Top setores', 14, y); y += 7;
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  const maxSet = (m.porSetor[0] && m.porSetor[0][1]) || 1;
+  m.porSetor.slice(0, 5).forEach(([nome, val]) => {
+    if (y > 250) { doc.addPage(); y = 20; }
+    doc.setTextColor(60);
+    const nomeCurto = nome.length > 32 ? nome.slice(0, 31) + '…' : nome;
+    doc.text(nomeCurto, 14, y);
+    const barMax = 80; const bw = Math.max(2, (val / maxSet) * barMax);
+    doc.setFillColor(6, 182, 212); doc.rect(110, y - 3.5, bw, 4, 'F');
+    doc.setTextColor(30); doc.text(String(val), 110 + barMax + 6, y);
+    y += 7;
   });
+
   y += 4;
-  doc.setFontSize(13);
-  doc.text('Distribuição por tipo', 14, y); y += 6;
-  doc.setFontSize(10);
+  // ---- Distribuição por tipo ----
+  if (y > 250) { doc.addPage(); y = 20; }
+  doc.setTextColor(30); doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('Distribuição por tipo', 14, y); y += 7;
+  doc.setFontSize(9); doc.setFont(undefined, 'normal');
+  const maxTipo = (m.tipos[0] && m.tipos[0][1]) || 1;
   m.tipos.forEach(([tipo, val]) => {
-    if (y > 270) { doc.addPage(); y = 15; }
-    doc.text('- ' + tipo + ': ' + val, 18, y); y += 5;
+    if (y > 260) { doc.addPage(); y = 20; }
+    doc.setTextColor(60); doc.text(String(tipo), 14, y);
+    const barMax = 80; const bw = Math.max(2, (val / maxTipo) * barMax);
+    doc.setFillColor(139, 92, 246); doc.rect(110, y - 3.5, bw, 4, 'F');
+    doc.setTextColor(30); doc.text(String(val), 110 + barMax + 6, y);
+    y += 7;
   });
-  y += 4;
-  if (y > 240) { doc.addPage(); y = 15; }
-  doc.setFontSize(13);
-  doc.text('Inventários do mês', 14, y); y += 6;
-  doc.setFontSize(9);
+
+  y += 6;
+  // ---- Tabela de inventários ----
+  if (y > 240) { doc.addPage(); y = 20; }
+  doc.setTextColor(30); doc.setFontSize(12); doc.setFont(undefined, 'bold');
+  doc.text('Inventários do mês', 14, y); y += 7;
+  doc.setFontSize(8.5); doc.setFont(undefined, 'normal');
   const ord = ctx.invents.slice().sort((a, b) => (a.data || '').localeCompare(b.data || ''));
   ord.forEach(h => {
-    if (y > 275) { doc.addPage(); y = 15; }
-    const linha = fmtDateBR(h.data) + '  |  ' + (h.setor || '-') + '  |  ' + (h.totalItens || 0) + ' ativo(s)' +
-                  (h.analista ? '  |  ' + h.analista : '');
-    doc.text(linha, 18, y); y += 5;
+    if (y > 278) { doc.addPage(); y = 20; }
+    doc.setTextColor(70);
+    const linha = fmtDateBR(h.data) + '   ·   ' + (h.setor || '-') + '   ·   ' + (h.totalItens || 0) + ' ativo(s)' +
+                  (h.analista ? '   ·   ' + h.analista : '');
+    doc.text(linha.length > 95 ? linha.slice(0, 94) + '…' : linha, 14, y); y += 6;
   });
-  doc.save('Relatorio-Mensal_' + info.ano + '-' + String(info.mes).padStart(2, '0') + '.pdf');
-  toast('PDF mensal gerado!', 3000);
+
+  // ---- Rodapé em todas as páginas ----
+  const totalPag = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPag; p++) {
+    doc.setPage(p);
+    doc.setFontSize(7.5); doc.setTextColor(150);
+    doc.text('OpenInvTI · Relatório gerado automaticamente · Página ' + p + '/' + totalPag,
+             W/2, doc.internal.pageSize.getHeight() - 8, { align: 'center' });
+  }
+
+  doc.save('Relatorio-Executivo_' + info.ano + '-' + String(info.mes).padStart(2, '0') + '.pdf');
+  toast('PDF executivo gerado!', 3000);
 }
 
+
+// ============================================================
+// v1.8.0: Tela SETORES (consultar + renomear + mesclar)
+// ============================================================
+function coletarSetoresInfo() {
+  const map = new Map();
+  function add(setor, itens, dataIso, invId, emAndamento) {
+    if (!setor) return;
+    if (!map.has(setor)) map.set(setor, { nome: setor, invs: 0, ativos: 0, datas: [], emAndamento: false });
+    const s = map.get(setor);
+    s.invs += 1;
+    s.ativos += itens;
+    if (dataIso) s.datas.push(dataIso);
+    if (emAndamento) s.emAndamento = true;
+  }
+  if (STATE.setor && (STATE.items || []).length > 0) {
+    add(STATE.setor, (STATE.items || []).length, STATE.data || todayIso(), 'atual', true);
+  }
+  for (const h of (STATE.historicoSessoes || [])) {
+    if (h.setor) add(h.setor, h.totalItens || 0, h.data, h.id, false);
+  }
+  return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+}
+
+function abrirTelaSetores() {
+  renderSetoresLista('');
+  const busca = document.getElementById('setoresBusca');
+  if (busca) {
+    busca.value = '';
+    busca.oninput = () => renderSetoresLista(busca.value);
+  }
+  const back = document.getElementById('setoresBack');
+  if (back) back.onclick = () => showScreen('screen-start');
+  showScreen('screen-setores');
+}
+
+function renderSetoresLista(filtro) {
+  const cont = document.getElementById('setoresLista');
+  if (!cont) return;
+  const q = (filtro || '').trim().toLowerCase();
+  let setores = coletarSetoresInfo();
+  if (q) setores = setores.filter(s => s.nome.toLowerCase().includes(q));
+  if (setores.length === 0) {
+    cont.innerHTML = '<div class="hm-empty">Nenhum setor encontrado.</div>';
+    return;
+  }
+  cont.innerHTML = setores.map((s) => {
+    const datas = s.datas.slice().sort();
+    const ultima = datas.length ? fmtDateBR(datas[datas.length - 1]) : '-';
+    return '<div class="setor-item">' +
+      '<div class="setor-item-head">' +
+        '<div style="flex:1">' +
+          '<div class="setor-item-nome">' + escapeHtml(s.nome) + (s.emAndamento ? ' <span class="setor-item-badge">· em andamento</span>' : '') + '</div>' +
+          '<div class="setor-item-sub">' + s.invs + ' inventário(s) · ' + s.ativos + ' ativo(s) · última: ' + ultima + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="setor-item-actions">' +
+        '<button type="button" class="setor-btn" data-act="consultar" data-setor="' + escapeHtml(s.nome) + '">👁 Consultar</button>' +
+        '<button type="button" class="setor-btn" data-act="renomear" data-setor="' + escapeHtml(s.nome) + '">✏️ Renomear</button>' +
+        '<button type="button" class="setor-btn setor-btn-merge" data-act="mesclar" data-setor="' + escapeHtml(s.nome) + '">🔗 Mesclar</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  cont.querySelectorAll('.setor-btn').forEach((btn) => {
+    btn.onclick = () => {
+      const act = btn.dataset.act;
+      const setor = btn.dataset.setor;
+      if (act === 'consultar') consultarSetor(setor);
+      else if (act === 'renomear') renomearSetorPrompt(setor);
+      else if (act === 'mesclar') mesclarSetorPrompt(setor);
+    };
+  });
+}
+
+function consultarSetor(setor) {
+  // Lista dispositivos daquele setor (reusa tela de dispositivos com filtro)
+  abrirTelaDispositivos(setor);
+}
+
+async function renomearSetorPrompt(setorAntigo) {
+  const novo = prompt('Renomear setor:\n\nDe: ' + setorAntigo + '\n\nNovo nome:', setorAntigo);
+  if (novo === null) return;
+  const novoNome = novo.trim();
+  if (!novoNome) { toast('Nome vazio.', 2500); return; }
+  if (novoNome === setorAntigo) return;
+  let alterados = 0;
+  if (STATE.setor === setorAntigo) { STATE.setor = novoNome; alterados++; }
+  for (const h of (STATE.historicoSessoes || [])) {
+    if (h.setor === setorAntigo) { h.setor = novoNome; alterados++; }
+  }
+  try { await saveState(); } catch (e) {}
+  toast('✓ Setor renomeado (' + alterados + ' registro(s)).', 3000);
+  renderSetoresLista(document.getElementById('setoresBusca') ? document.getElementById('setoresBusca').value : '');
+  updateDashboard();
+}
+
+async function mesclarSetorPrompt(setorOrigem) {
+  const setores = coletarSetoresInfo().map(s => s.nome).filter(n => n !== setorOrigem);
+  if (setores.length === 0) { toast('Não há outro setor pra mesclar.', 3000); return; }
+  const lista = setores.map((n, i) => (i+1) + ') ' + n).join('\n');
+  const resp = prompt('MESCLAR SETORES\n\nMover tudo de "' + setorOrigem + '" para qual setor?\n\n' + lista + '\n\nDigite o NÚMERO do setor destino:');
+  if (resp === null) return;
+  const idx = parseInt(resp.trim(), 10) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= setores.length) { toast('Número inválido.', 2500); return; }
+  const destino = setores[idx];
+  if (!confirm('Confirmar: mover todos os inventários de "' + setorOrigem + '" para "' + destino + '"?\n\nEssa ação junta os dois setores num só.')) return;
+  let alterados = 0;
+  if (STATE.setor === setorOrigem) { STATE.setor = destino; alterados++; }
+  for (const h of (STATE.historicoSessoes || [])) {
+    if (h.setor === setorOrigem) { h.setor = destino; alterados++; }
+  }
+  try { await saveState(); } catch (e) {}
+  toast('✓ Setores mesclados (' + alterados + ' registro(s)).', 3500);
+  renderSetoresLista('');
+  updateDashboard();
+}
+
+// ============================================================
+// v1.8.0: Tela DISPOSITIVOS (catálogo central pesquisável)
+// ============================================================
+function coletarTodosDispositivos() {
+  const out = [];
+  // inventário atual
+  for (const it of (STATE.items || [])) {
+    out.push(Object.assign({}, it, { _setor: STATE.setor || '(sem setor)', _data: STATE.data || todayIso(), _origem: 'atual' }));
+  }
+  // arquivados
+  for (const h of (STATE.historicoSessoes || [])) {
+    for (const it of (h.items || [])) {
+      out.push(Object.assign({}, it, { _setor: h.setor || '(sem setor)', _data: h.data, _origem: h.id }));
+    }
+  }
+  return out;
+}
+
+let _dispFiltroTipo = null;
+function abrirTelaDispositivos(setorPrefiltro) {
+  _dispFiltroTipo = null;
+  const busca = document.getElementById('dispBusca');
+  if (busca) {
+    busca.value = setorPrefiltro || '';
+    busca.oninput = () => renderDispositivos(busca.value);
+  }
+  const back = document.getElementById('dispBack');
+  if (back) back.onclick = () => showScreen('screen-start');
+  // chips de tipo
+  const todos = coletarTodosDispositivos();
+  const tipos = Array.from(new Set(todos.map(d => d.tipo || 'Outro'))).sort();
+  const chipsEl = document.getElementById('dispFiltros');
+  if (chipsEl) {
+    chipsEl.innerHTML = '<button type="button" class="disp-chip active" data-tipo="">Todos</button>' +
+      tipos.map(t => '<button type="button" class="disp-chip" data-tipo="' + escapeHtml(t) + '">' + escapeHtml(t) + '</button>').join('');
+    chipsEl.querySelectorAll('.disp-chip').forEach(chip => {
+      chip.onclick = () => {
+        chipsEl.querySelectorAll('.disp-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        _dispFiltroTipo = chip.dataset.tipo || null;
+        renderDispositivos(busca ? busca.value : '');
+      };
+    });
+  }
+  const btnXls = document.getElementById('dispBtnXLS');
+  if (btnXls) btnXls.onclick = () => exportarDispositivosExcel().catch(e => toast('Erro: ' + (e.message || e), 3500));
+  renderDispositivos(setorPrefiltro || '');
+  showScreen('screen-dispositivos');
+}
+
+function renderDispositivos(filtro) {
+  const cont = document.getElementById('dispLista');
+  const countEl = document.getElementById('dispCount');
+  if (!cont) return;
+  const q = (filtro || '').trim().toLowerCase();
+  let disp = coletarTodosDispositivos();
+  if (_dispFiltroTipo) disp = disp.filter(d => (d.tipo || 'Outro') === _dispFiltroTipo);
+  if (q) {
+    disp = disp.filter(d => {
+      const blob = [d.tipo, d.marca, d.modelo, d.patrimonio, d.serie, d.usuario, d._setor, d.ramal].map(x => String(x || '').toLowerCase()).join(' ');
+      return blob.includes(q);
+    });
+  }
+  if (countEl) countEl.textContent = disp.length + ' dispositivo(s)';
+  if (disp.length === 0) {
+    cont.innerHTML = '<div class="hm-empty">Nenhum dispositivo encontrado.</div>';
+    return;
+  }
+  // limita render a 200 pra performance
+  const render = disp.slice(0, 200);
+  cont.innerHTML = render.map((d) => {
+    const ident = (d.patrimonio && d.patrimonio !== 'Nao capturado') ? d.patrimonio
+                : (d.serie && d.serie !== '-') ? 'S/N: ' + d.serie : '—';
+    const marcaModelo = [d.marca, d.modelo].filter(x => x && x !== '-').join(' ') || '—';
+    return '<div class="disp-item">' +
+      '<div class="disp-item-head">' +
+        '<span class="disp-item-tipo">' + escapeHtml(d.tipo || 'Outro') + '</span>' +
+        '<span class="disp-item-id">' + escapeHtml(ident) + '</span>' +
+      '</div>' +
+      '<div class="disp-item-sub">' + escapeHtml(marcaModelo) + (d.usuario ? ' · 👤 ' + escapeHtml(d.usuario) : '') + '</div>' +
+      '<div class="disp-item-meta">🏢 ' + escapeHtml(d._setor) + (d._data ? ' · ' + fmtDateBR(d._data) : '') + '</div>' +
+    '</div>';
+  }).join('') + (disp.length > 200 ? '<div class="hm-empty">Mostrando 200 de ' + disp.length + '. Refine a busca.</div>' : '');
+}
+
+async function exportarDispositivosExcel() {
+  if (typeof ExcelJS === 'undefined') { toast('ExcelJS não carregou.', 3500); return; }
+  let disp = coletarTodosDispositivos();
+  if (_dispFiltroTipo) disp = disp.filter(d => (d.tipo || 'Outro') === _dispFiltroTipo);
+  const busca = document.getElementById('dispBusca');
+  const q = busca ? busca.value.trim().toLowerCase() : '';
+  if (q) disp = disp.filter(d => [d.tipo,d.marca,d.modelo,d.patrimonio,d.serie,d.usuario,d._setor].map(x=>String(x||'').toLowerCase()).join(' ').includes(q));
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Dispositivos');
+  ws.columns = [
+    { header: 'Setor', key: 'setor', width: 26 },
+    { header: 'Data', key: 'data', width: 12 },
+    { header: 'Tipo', key: 'tipo', width: 14 },
+    { header: 'Marca', key: 'marca', width: 14 },
+    { header: 'Modelo', key: 'modelo', width: 20 },
+    { header: 'Patrimônio', key: 'pat', width: 16 },
+    { header: 'Série', key: 'serie', width: 20 },
+    { header: 'Usuário', key: 'user', width: 24 },
+    { header: 'Ramal', key: 'ramal', width: 10 },
+    { header: 'Obs', key: 'obs', width: 30 },
+  ];
+  ws.getRow(1).font = { bold: true };
+  for (const d of disp) {
+    ws.addRow({ setor: d._setor, data: d._data ? fmtDateBR(d._data) : '', tipo: d.tipo||'', marca: d.marca||'', modelo: d.modelo||'', pat: d.patrimonio||'', serie: d.serie||'', user: d.usuario||'', ramal: d.ramal||'', obs: d.obs||'' });
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'Dispositivos_OpenInvTI_' + todayIso() + '.xlsx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Excel de dispositivos gerado! (' + disp.length + ')', 3000);
+}
 
 window.addEventListener('keydown', function(e) {
   if (e.target && (e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox'))) return;
