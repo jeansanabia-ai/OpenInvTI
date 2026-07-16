@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.8.1';
+const APP_VERSION = '1.8.2';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -688,13 +688,23 @@ function updateTopbar() {
     badge.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrirHistoricoModal('itens-atuais'); } });
     badge.dataset.bound = '1';
   }
+  // v1.8.2: linha de status com bolinha ao vivo
+  const sub = $('topSub');
   if (STATE.setor) {
     $('topTitle').textContent = STATE.setor;
-    $('topSub').textContent = fmtDateBR(STATE.data) + ' · v' + APP_VERSION;
+    if (sub) {
+      if (total > 0) {
+        sub.innerHTML = '<span class="status-dot"></span>em andamento · ' + total + (total === 1 ? ' ativo' : ' ativos');
+      } else {
+        sub.innerHTML = '<span class="status-dot idle"></span>' + fmtDateBR(STATE.data) + ' · v' + APP_VERSION;
+      }
+    }
   } else {
     $('topTitle').textContent = 'OpenInvTI';
-    $('topSub').textContent = APP_TAGLINE + ' · v' + APP_VERSION;
+    if (sub) sub.innerHTML = '<span class="status-dot idle"></span>' + APP_TAGLINE + ' · v' + APP_VERSION;
   }
+  // v1.8.2: o contador agora vive na linha de status → esconde badge redundante
+  badge.style.display = 'none';
 }
 
 // v1.0.11: helper — fecha modal e abre wizard pra editar
@@ -3485,7 +3495,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   // (antes só rodava em updateTopbar, que só dispara na tela home — então setup-empresa ficava com versão velha hardcoded)
   try {
     const sub = document.getElementById('topSub');
-    if (sub) sub.textContent = APP_TAGLINE + ' · v' + APP_VERSION;
+    if (sub) sub.innerHTML = '<span class="status-dot idle"></span>' + APP_TAGLINE + ' · v' + APP_VERSION;
+    // v1.8.2: status/título clicável → abre itens da sessão quando há inventário
+    const tt = document.getElementById('topTitle');
+    [sub, tt].forEach(el => {
+      if (el && !el.dataset.bound) {
+        el.dataset.bound = '1';
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', () => {
+          if ((STATE.items || []).length > 0) abrirHistoricoModal('itens-atuais');
+        });
+      }
+    });
   } catch (e) {}
 
   // v1.0.9: Aplica preset de empresa via ?preset=XXX na URL antes de qualquer coisa

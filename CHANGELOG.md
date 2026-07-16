@@ -2,6 +2,21 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.8.2] - 2026-07-15 (PATCH — revitalização da barra do topo, menu e modais)
+
+### 🎨 Barra do topo repaginada
+- **Hamburger** com fundo suave ciano, cantos arredondados e mais tocável (38×38px)
+- **Título** sem o emoji 📋 antigo, tipografia mais limpa
+- **Linha de status ao vivo** — no lugar do badge "9 itens" solto, agora mostra `● em andamento · N ativos` com bolinha verde pulsante (ou cinza quando parado). Clicável pra ver os itens da sessão.
+- **Ícones de ação** (⚙️ e 🌓) uniformizados em botões discretos e consistentes
+- Fundo da barra com gradiente vertical mais elegante
+
+### 🧭 Menu lateral polido
+Cabeçalho com ícone num badge arredondado ciano + gradiente sutil, melhor hierarquia tipográfica.
+
+### 🗂️ Modais refinados
+Botão "Fechar" mais discreto e moderno (hover ciano), títulos com hierarquia melhor.
+
 ## [1.8.1] - 2026-07-15 (PATCH — fix CSS não aplicado + cache-busting definitivo)
 
 ### 🐛 Painel aparecia sem estilo
