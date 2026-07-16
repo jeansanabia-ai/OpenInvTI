@@ -10,7 +10,7 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=1.8.2" />
+  <link rel="stylesheet" href="style.css?v=1.8.3" />
   <title>OpenInvTI - Inventário de TI</title>
   <!-- v1.2.7: bootstrap GARANTIDO dos botões de setup — funciona mesmo se app.js falhar -->
   <script>
@@ -62,13 +62,20 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.8.2</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.8.3</div>
         </div>
       </div>
       <div class="topbar-actions">
-        <div class="ia-badge" id="iaBadge" title="IA ativa — extração automática habilitada" style="display:none">🤖 IA</div>
-        <button id="settingsBtn" class="theme-toggle-btn" aria-label="Configurações" title="Configurações da empresa">⚙️</button>
-        <button id="themeToggle" class="theme-toggle-btn" aria-label="Alternar tema" title="Alternar tema claro/escuro">🌓</button>
+        <div class="ia-badge" id="iaBadge" title="IA ativa — extração automática habilitada" style="display:none">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 4h6"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
+          <span>IA</span>
+        </div>
+        <button id="settingsBtn" class="theme-toggle-btn" aria-label="Configurações" title="Configurações da empresa">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </button>
+        <button id="themeToggle" class="theme-toggle-btn" aria-label="Alternar tema" title="Alternar tema claro/escuro">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
         <div class="badge" id="topBadge" style="display:none">0 itens</div>
       </div>
     </header>
@@ -641,7 +648,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.8.2</p>
+          <p>Gestão de Ativos de TI · v1.8.3</p>
         </div>
       </div>
       <div class="side-menu-list">
@@ -660,7 +667,6 @@
         <button type="button" class="side-menu-item" data-menu="analise">
           <span class="smi-emoji">📊</span>
           <span class="smi-label">Análise / Dashboard</span>
-        </button>
         <button type="button" class="side-menu-item" data-menu="dispositivos">
           <span class="smi-emoji">🗂️</span>
           <span class="smi-label">Dispositivos</span>
@@ -688,6 +694,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-  <script src="app.js?v=1.8.2"></script>
+  <script src="app.js?v=1.8.3"></script>
 </body>
 </html>

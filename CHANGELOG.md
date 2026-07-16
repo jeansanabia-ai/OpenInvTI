@@ -2,6 +2,18 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.8.3] - 2026-07-15 (PATCH — ícones SVG no topo + modal Análise repaginado)
+
+### 🎨 Ícones do topo agora são SVG limpos
+Os botões de ⚙️ Configurações, 🌓 Tema e o badge 🤖 IA trocaram os emojis por ícones SVG traço-fino consistentes (como na proposta). Alinhados e mais profissionais.
+
+### 📊 Modal "Análise do inventário" totalmente repaginado
+- **3 KPI-cards** no topo (Ativos / Sessão atual / Arquivados)
+- **Gráfico donut** (Chart.js) pra distribuição por tipo, com legenda lateral (nome · quantidade · %)
+- **Top marcas** em barras horizontais modernas com gradiente
+- **Top usuários** e **arquivados** em linhas-cartão limpas
+- Cores categóricas consistentes no donut e na legenda
+
 ## [1.8.2] - 2026-07-15 (PATCH — revitalização da barra do topo, menu e modais)
 
 ### 🎨 Barra do topo repaginada

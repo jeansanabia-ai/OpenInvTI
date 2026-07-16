@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.8.2';
+const APP_VERSION = '1.8.3';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -3140,55 +3140,91 @@ function abrirDashboardAnalitico() {
     if (it.usuario) porUsuario[it.usuario] = (porUsuario[it.usuario] || 0) + 1;
   });
   const topMarcas = Object.entries(porMarca).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+  const topTipos = Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
   const topUsuarios = Object.entries(porUsuario).sort((a,b)=>b[1]-a[1]).slice(0, 5);
   const overlay = document.createElement('div');
   overlay.id = 'historyModal';
   overlay.className = 'history-modal-bg';
+  const total = todosItems.length || 1;
+
   let html = '<div class="history-modal" style="max-width:680px">' +
-    '<button class="hm-close" id="hmCloseBtn">Fechar ×</button>' +
-    '<h3>📊 Análise do Inventário</h3>' +
-    '<div class="hm-arch-meta">' +
-    '<div style="font-size:18px;color:#67E8F9;margin-bottom:4px"><strong>' + todosItems.length + '</strong> equipamentos no total</div>' +
-    '<div>📦 Sessão atual: ' + items.length + ' · 🗂️ Arquivados: ' + (todosItems.length - items.length) + '</div>' +
-    '</div>';
-  if (Object.keys(porTipo).length > 0) {
-    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#67E8F9;margin-bottom:8px">▸ Por tipo</div>';
-    Object.entries(porTipo).sort((a,b)=>b[1]-a[1]).forEach(([t,n]) => {
-      const pct = Math.round((n/todosItems.length)*100);
-      html += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#E2E8F0"><span>' + t + '</span><span>' + n + ' (' + pct + '%)</span></div>' +
-        '<div style="background:rgba(13,20,36,0.7);border-radius:6px;height:6px;margin-top:2px"><div style="background:linear-gradient(90deg,#06B6D4,#34D399);width:' + pct + '%;height:100%;border-radius:6px"></div></div></div>';
-    });
-    html += '</div>';
+    '<button class="hm-close" id="hmCloseBtn">Fechar</button>' +
+    '<h3>📊 Análise do inventário</h3>';
+
+  // KPIs no topo
+  html += '<div class="an-kpis">' +
+    '<div class="an-kpi"><div class="an-kpi-val">' + todosItems.length + '</div><div class="an-kpi-lbl">Ativos</div></div>' +
+    '<div class="an-kpi"><div class="an-kpi-val">' + items.length + '</div><div class="an-kpi-lbl">Sessão atual</div></div>' +
+    '<div class="an-kpi"><div class="an-kpi-val">' + (todosItems.length - items.length) + '</div><div class="an-kpi-lbl">Arquivados</div></div>' +
+  '</div>';
+
+  // Donut de tipos + legenda
+  if (topTipos.length > 0) {
+    html += '<div class="an-secao"><div class="an-secao-titulo">Distribuição por tipo</div>' +
+      '<div class="an-donut-wrap"><div class="an-donut-canvas"><canvas id="anDonut"></canvas></div>' +
+      '<div class="an-donut-leg" id="anDonutLeg"></div></div></div>';
   }
+
+  // Top marcas em barras modernas
   if (topMarcas.length > 0) {
-    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#34D399;margin-bottom:8px">▸ Top marcas</div>';
+    const maxM = topMarcas[0][1] || 1;
+    html += '<div class="an-secao"><div class="an-secao-titulo">Top marcas</div>';
     topMarcas.forEach(([m,n]) => {
-      const pct = Math.round((n/todosItems.length)*100);
-      html += '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px;color:#E2E8F0"><span>' + m + '</span><span>' + n + '</span></div>' +
-        '<div style="background:rgba(13,20,36,0.7);border-radius:6px;height:6px;margin-top:2px"><div style="background:#FCD34D;width:' + pct + '%;height:100%;border-radius:6px"></div></div></div>';
+      const pct = Math.round((n/maxM)*100);
+      html += '<div class="an-bar-row"><div class="an-bar-label">' + escapeHtml(m) + '</div>' +
+        '<div class="an-bar-track"><div class="an-bar-fill an-bar-amber" style="width:' + pct + '%"></div></div>' +
+        '<div class="an-bar-val">' + n + '</div></div>';
     });
     html += '</div>';
   }
+
+  // Top usuários
   if (topUsuarios.length > 0) {
-    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#A78BFA;margin-bottom:8px">▸ Top usuários (equipamentos)</div>';
+    html += '<div class="an-secao"><div class="an-secao-titulo">Top usuários</div>';
     topUsuarios.forEach(([u,n]) => {
-      html += '<div class="hm-item" style="padding:8px 12px"><strong style="font-size:13px">' + u + '</strong><span style="float:right;color:#67E8F9">' + n + ' equip</span></div>';
+      html += '<div class="an-user-row"><span class="an-user-nome">' + escapeHtml(u) + '</span><span class="an-user-badge">' + n + ' ativo(s)</span></div>';
     });
     html += '</div>';
   }
+
+  // Arquivados
   if (historico.length > 0) {
-    html += '<div style="margin:14px 0"><div style="font-size:12px;font-weight:700;color:#FB7185;margin-bottom:8px">▸ Inventários arquivados</div>';
+    html += '<div class="an-secao"><div class="an-secao-titulo">Inventários arquivados</div>';
     historico.forEach(h => {
-      html += '<div class="hm-item" style="padding:8px 12px"><strong style="font-size:13px">' + (h.setor || '-') + '</strong>' +
-        '<span style="float:right;color:#94A3B8;font-size:11px">' + (h.totalItens || 0) + ' itens · ' + (h.data ? fmtDateBR(h.data) : '') + '</span></div>';
+      html += '<div class="an-user-row"><span class="an-user-nome">' + escapeHtml(h.setor || '-') + '</span>' +
+        '<span class="an-user-meta">' + (h.totalItens || 0) + ' ativos · ' + (h.data ? fmtDateBR(h.data) : '') + '</span></div>';
     });
     html += '</div>';
   }
+
   html += '</div>';
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
   document.getElementById('hmCloseBtn').onclick = () => overlay.remove();
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  // Desenha donut + legenda
+  if (topTipos.length > 0 && typeof Chart !== 'undefined') {
+    const cores = ['#06B6D4','#34D399','#A78BFA','#FCD34D','#FB7185','#60A5FA','#F472B6','#4ADE80'];
+    const canvas = document.getElementById('anDonut');
+    const leg = document.getElementById('anDonutLeg');
+    if (canvas) {
+      try {
+        new Chart(canvas.getContext('2d'), {
+          type: 'doughnut',
+          data: { labels: topTipos.map(t=>t[0]), datasets: [{ data: topTipos.map(t=>t[1]), backgroundColor: cores, borderWidth: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } }
+        });
+      } catch (e) { console.warn(e); }
+    }
+    if (leg) {
+      leg.innerHTML = topTipos.map(([t,n],i) => {
+        const pct = Math.round((n/total)*100);
+        return '<div class="an-leg-item"><span class="an-leg-dot" style="background:' + cores[i%cores.length] + '"></span>' +
+          '<span class="an-leg-nome">' + escapeHtml(t) + '</span><span class="an-leg-val">' + n + ' · ' + pct + '%</span></div>';
+      }).join('');
+    }
+  }
 }
 
 function popularUsuariosDatalist() {
