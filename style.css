@@ -2436,4 +2436,12 @@ input[list] { padding-right: 38px; }
     linear-gradient(135deg, rgba(8, 145, 178, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%),
     radial-gradient(circle at 20% 20%, rgba(103, 232, 249, 0.4), transparent 50%);
   background-blend-mode: overlay;
-  co
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(8, 145, 178, 0.35);
+  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+}
+.barcode-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 26px rgba(8, 145, 178, 0.45); }
+.barcode-cta:active { transform: translateY(0); filter: brightness(0.96); }

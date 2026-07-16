@@ -2,6 +2,17 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.8.1] - 2026-07-15 (PATCH — fix CSS não aplicado + cache-busting definitivo)
+
+### 🐛 Painel aparecia sem estilo
+No celular, o painel novo da v1.8.0 renderizou como texto empilhado (sem CSS). Causa: o navegador servia `style.css` e `app.js` do cache antigo (pré-v1.8.0), mesmo com HTML novo. O topo mostrava "v1.7.0".
+
+### 🔧 Cache-busting definitivo
+Os assets agora carregam com query de versão: `style.css?v=1.8.1` e `app.js?v=1.8.1`. Quando a versão muda, o navegador trata como URL nova e baixa fresh — ignora cache do Service Worker E cache HTTP. Isso resolve de vez o problema recorrente de "app não atualiza no celular". A cada release, o `?v=` sobe junto.
+
+### 🧹 Reparo do style.css
+O `style.css` tinha uma regra `.barcode-cta` truncada desde versões antigas (nunca afetou nada por ser a última regra, mas deixava o arquivo desbalanceado). Completada e fechada corretamente. CSS agora balanceado (657/657 chaves).
+
 ## [1.8.0] - 2026-07-15 (MINOR — Redesenho do painel + Setores editável + Dispositivos + PDF executivo)
 
 Redesenho grande do dashboard focado em experiência, navegação e exportação executiva.

@@ -28,7 +28,7 @@ test('sw.js parse OK', () => { new Function(fs.readFileSync(path.join(root, 'sw.
 
 console.log('\n=== 2. INTEGRIDADE DO HTML ===');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-test('HTML tem <script src="app.js">', () => html.includes('<script src="app.js">'));
+test('HTML tem <script src="app.js">', () => /<script src="app.js(\?v=[\d.]+)?">/.test(html));
 test('HTML tem #cameraModal',         () => /id="cameraModal"/.test(html));
 test('HTML tem #toast',               () => /id="toast"/.test(html));
 test('HTML tem #cfgQuickFar',         () => /id="cfgQuickFar"/.test(html));
