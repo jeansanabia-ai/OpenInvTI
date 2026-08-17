@@ -1,10 +1,10 @@
 // Service worker para PWA OpenInvTI - network-first + paths relativos (Netlify, GitHub Pages, Cloudflare)
-const CACHE_NAME = 'openinvti-v1.8.3-prod';
+const CACHE_NAME = 'openinvti-v1.8.4-prod';
 const CORE_FILES = [
   './',
   './index.html',
-  './app.js?v=1.8.3',
-  './style.css?v=1.8.3',
+  './app.js?v=1.8.4',
+  './style.css?v=1.8.4',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

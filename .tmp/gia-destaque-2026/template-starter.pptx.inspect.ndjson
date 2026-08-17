@@ -1,0 +1,68 @@
+{"kind":"deck","id":"pr/xksop5","name":"Deck"}
+{"kind":"layout","layoutId":"/ppt/slideMasters/slideMaster1.xml","name":"","type":"master","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout1.xml","name":"Slide de Título","placeholders":[{"name":"picture","type":"picture"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout2.xml","name":"Título e Conteúdo","placeholders":[{"name":"picture","type":"picture"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout3.xml","name":"Cabeçalho da Seção","type":"secHead","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout4.xml","name":"Duas Partes de Conteúdo","type":"twoObj","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"espa o reservado para conte do 2","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"espa o reservado para conte do 3","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout5.xml","name":"Comparação","type":"twoTxTwoObj","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres"},{"name":"espa o reservado para conte do 3","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres"},{"name":"espa o reservado para conte do 5","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout6.xml","name":"Somente Título","type":"titleOnly","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout7.xml","name":"Em Branco","type":"blank","placeholders":[{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout8.xml","name":"Conteúdo com Legenda","type":"objTx","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"espa o reservado para conte do 2","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout9.xml","name":"Imagem com Legenda","type":"picTx","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"picture","type":"picture"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout10.xml","name":"Título e Texto Vertical","type":"vertTx","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"layout","layoutId":"/ppt/slideLayouts/slideLayout11.xml","name":"Texto e Título Vertical","type":"vertTitleAndTx","placeholders":[{"name":"title","type":"title","textPreview":"Clique para editar o título Mestre"},{"name":"body","type":"body","textPreview":"Clique para editar os estilos de texto Mestres | Segundo nível | Terceiro nível | Quarto nível | Quinto nível"},{"name":"dateTime","type":"dateTime","textPreview":"14/08/2026"},{"name":"footer","type":"footer"},{"name":"slideNumber","type":"slideNumber","textPreview":"‹nº›"}]}
+{"kind":"slide","id":"sl/juyfdu","slide":1,"title":"Projetos de Melhoria Contínua 2026","textShapes":1}
+{"kind":"textbox","id":"sh/ozuxkbut","slide":1,"name":"CaixaDeTexto 5","text":"Projetos de Melhoria Contínua 2026\nPDXXX/XX – Nome do Projeto","textPreview":"Projetos de Melhoria Contínua 2026 | PDXXX/XX – Nome do Projeto","textChars":61,"textLines":2,"bbox":[10.13,601.89,1063.17,85.63]}
+{"kind":"shape","id":"sh/wvehkzy1","slide":1,"name":"Gráfico 1080","bbox":[0,567.32,1280,13.52]}
+{"kind":"image","id":"im/sf2d4zm5","slide":1,"name":"Imagem 4","bbox":[0,0,1280,720]}
+{"kind":"image","id":"im/d0bexk3q","slide":1,"name":"Gráfico 8","bbox":[1090.1,601.89,173.09,89.14]}
+{"kind":"image","id":"im/mhgvql4v","slide":1,"name":"Imagem 2","bbox":[421.71,158.54,436.57,250.23]}
+{"kind":"notes","id":"nt/juyfdu","slide":1,"text":""}
+{"kind":"slide","id":"sl/4w7wbc","slide":2,"title":"Área:","textShapes":2}
+{"kind":"textbox","id":"sh/9cju9wby","slide":2,"name":"CaixaDeTexto 10","text":"Área:  \n\nCategoria inscrita: \n\nParticipantes: \n\nImplantação: xx/xx/xxxxx a xx/xx/xxxx\n\nObjetivo: \n","textPreview":"Área:   |  | Categoria inscrita:  |  | Participantes:  |  | Implantação: xx/xx/xxxxx a xx/xx/xxxx |  | Objetivo:  |","textChars":98,"textLines":10,"bbox":[36.58,193.59,1101.72,332.82]}
+{"kind":"textbox","id":"sh/0nqdwrah","slide":2,"name":"CaixaDeTexto 5","text":"Projetos de Melhoria Contínua 2026\nPDXXX/XX – Nome do Projeto","textPreview":"Projetos de Melhoria Contínua 2026 | PDXXX/XX – Nome do Projeto","textChars":61,"textLines":2,"bbox":[9.13,8.85,1063.17,85.63]}
+{"kind":"shape","id":"sh/5c7q5o3q","slide":2,"name":"Gráfico 1080","bbox":[0,87.48,1280,13.52]}
+{"kind":"image","id":"im/m5c7qx0r","slide":2,"name":"Imagem 2","bbox":[0,0,1280,720]}
+{"kind":"image","id":"im/98nq1sji","slide":2,"name":"Imagem 4","bbox":[1125.71,-18.59,145.15,145.15]}
+{"kind":"notes","id":"nt/4w7wbc","slide":2,"text":""}
+{"kind":"slide","id":"sl/f768xl","slide":3,"title":"Escreva aqui","textShapes":5}
+{"kind":"textbox","id":"sh/kzy5cf61","slide":3,"name":"CaixaDeTexto 10","text":"Escreva aqui\n\n\n\n\n\n\n","textPreview":"Escreva aqui |  |  |  |  |  |  |","textChars":19,"textLines":8,"bbox":[53.37,445.95,1198.19,268.19]}
+{"kind":"textbox","id":"sh/8ny5gz6x","slide":3,"name":"CaixaDeTexto 14","text":"Ações realizadas","textPreview":"Ações realizadas","textChars":16,"textLines":1,"bbox":[21.49,123.56,268.58,42.01]}
+{"kind":"textbox","id":"sh/7mp47u5c","slide":3,"name":"CaixaDeTexto 15","text":"Escreva aqui\n\n\n\n\n\n","textPreview":"Escreva aqui |  |  |  |  |  |","textChars":18,"textLines":7,"bbox":[51.92,162.86,1140.5,235.88]}
+{"kind":"textbox","id":"sh/hsr6d4ne","slide":3,"name":"CaixaDeTexto 17","text":"Resultados: ","textPreview":"Resultados:","textChars":12,"textLines":1,"bbox":[21.49,401.34,645.14,42.01]}
+{"kind":"textbox","id":"sh/gri5kz69","slide":3,"name":"CaixaDeTexto 5","text":"Projetos de Melhoria Contínua 2026\nPDXXX/XX – Nome do Projeto","textPreview":"Projetos de Melhoria Contínua 2026 | PDXXX/XX – Nome do Projeto","textChars":61,"textLines":2,"bbox":[9.13,8.85,1063.17,85.63]}
+{"kind":"shape","id":"sh/czip0za9","slide":3,"name":"Gráfico 1080","bbox":[0,87.48,1280,13.52]}
+{"kind":"image","id":"im/jmlcz2tc","slide":3,"name":"Imagem 2","bbox":[0,0,1280,720]}
+{"kind":"image","id":"im/ylcbqxsr","slide":3,"name":"Imagem 4","bbox":[1125.71,-18.59,145.15,145.15]}
+{"kind":"notes","id":"nt/f768xl","slide":3,"text":""}
+{"kind":"slide","id":"sl/ko18aj","slide":4,"title":"Projetos de Melhoria Contínua 2026","textShapes":6}
+{"kind":"textbox","id":"sh/fmlkfmh4","slide":4,"name":"CaixaDeTexto 5","text":"Projetos de Melhoria Contínua 2026\nPDXXX/XX – Nome do Projeto","textPreview":"Projetos de Melhoria Contínua 2026 | PDXXX/XX – Nome do Projeto","textChars":61,"textLines":2,"bbox":[9.13,8.85,1063.17,85.63]}
+{"kind":"textbox","id":"sh/tsbmhcja","slide":4,"name":"CaixaDeTexto 10","text":"Imagens","textPreview":"Imagens","textChars":7,"textLines":1,"bbox":[549.07,126.6,181.86,54.93]}
+{"kind":"textbox","id":"sh/ulcjmh0j","slide":4,"name":"CaixaDeTexto 4","text":"Como era antes","textPreview":"Como era antes","textChars":14,"textLines":1,"bbox":[168.51,205.37,245.2,46.85]}
+{"kind":"textbox","id":"sh/hon2hwza","slide":4,"name":"CaixaDeTexto 5","text":"Como ficou depois","textPreview":"Como ficou depois","textChars":17,"textLines":1,"bbox":[849.55,204.97,288.24,46.85]}
+{"kind":"shape","id":"sh/yhg3y10n","slide":4,"name":"Conector reto 8","bbox":[636.57,251.82,0,423.86]}
+{"kind":"textbox","id":"sh/54bmdcje","slide":4,"name":"CaixaDeTexto 14","text":"Cole a sua imagem aqui","textPreview":"Cole a sua imagem aqui","textChars":22,"textLines":1,"bbox":[142.74,413.8,310.98,42.01]}
+{"kind":"textbox","id":"sh/i10n2xkn","slide":4,"name":"CaixaDeTexto 15","text":"Cole a sua imagem aqui","textPreview":"Cole a sua imagem aqui","textChars":22,"textLines":1,"bbox":[837.59,413.8,308.69,42.01]}
+{"kind":"shape","id":"sh/rqt4fm1k","slide":4,"name":"Gráfico 1080","bbox":[0,87.48,1280,13.52]}
+{"kind":"image","id":"im/grih07q5","slide":4,"name":"Imagem 2","bbox":[0,0,1280,720]}
+{"kind":"image","id":"im/3e90vm9g","slide":4,"name":"Imagem 6","bbox":[1125.71,-18.59,145.15,145.15]}
+{"kind":"notes","id":"nt/ko18aj","slide":4,"text":""}
+{"kind":"slide","id":"sl/t6n14h","slide":5,"title":"Projetos de Melhoria Contínua 2026","textShapes":6}
+{"kind":"textbox","id":"sh/ap03mpsj","slide":5,"name":"CaixaDeTexto 5","text":"Projetos de Melhoria Contínua 2026\nPDXXX/XX – Nome do Projeto","textPreview":"Projetos de Melhoria Contínua 2026 | PDXXX/XX – Nome do Projeto","textChars":61,"textLines":2,"bbox":[9.13,8.85,1063.17,85.63]}
+{"kind":"textbox","id":"sh/6don29kn","slide":5,"name":"CaixaDeTexto 10","text":"Imagens","textPreview":"Imagens","textChars":7,"textLines":1,"bbox":[549.07,126.6,181.86,54.93]}
+{"kind":"textbox","id":"sh/bq94vu94","slide":5,"name":"CaixaDeTexto 4","text":"Como era antes","textPreview":"Como era antes","textChars":14,"textLines":1,"bbox":[168.51,205.37,245.2,46.85]}
+{"kind":"textbox","id":"sh/wrilozap","slide":5,"name":"CaixaDeTexto 5","text":"Como ficou depois","textPreview":"Como ficou depois","textChars":17,"textLines":1,"bbox":[849.55,204.97,288.24,46.85]}
+{"kind":"shape","id":"sh/rup4jq90","slide":5,"name":"Conector reto 8","bbox":[636.57,251.82,0,423.86]}
+{"kind":"textbox","id":"sh/i943y9kb","slide":5,"name":"CaixaDeTexto 14","text":"Cole a sua imagem aqui","textPreview":"Cole a sua imagem aqui","textChars":22,"textLines":1,"bbox":[142.74,413.8,310.98,42.01]}
+{"kind":"textbox","id":"sh/5cfm9o32","slide":5,"name":"CaixaDeTexto 15","text":"Cole a sua imagem aqui","textPreview":"Cole a sua imagem aqui","textChars":22,"textLines":1,"bbox":[837.59,413.8,308.69,42.01]}
+{"kind":"shape","id":"sh/sf654j2t","slide":5,"name":"Gráfico 1080","bbox":[0,87.48,1280,13.52]}
+{"kind":"image","id":"im/zuhcbypc","slide":5,"name":"Imagem 2","bbox":[0,0,1280,720]}
+{"kind":"image","id":"im/cr6t0j61","slide":5,"name":"Imagem 6","bbox":[1125.71,-18.59,145.15,145.15]}
+{"kind":"notes","id":"nt/t6n14h","slide":5,"text":""}
+{"kind":"slide","id":"sl/n8lqqu","slide":6,"title":"Slide 6","textShapes":0}
+{"kind":"image","id":"im/ilkn2l0v","slide":6,"name":"Imagem 2","bbox":[0,0,1280,720]}
+{"kind":"image","id":"im/5ob6dgjm","slide":6,"name":"Gráfico 3","bbox":[1016.67,527.68,227.79,117.31]}
+{"kind":"image","id":"im/kn254vi1","slide":6,"name":"Imagem 7","bbox":[35.54,527.68,248,146.36]}
+{"kind":"image","id":"im/vyto761k","slide":6,"name":"Imagem 11","bbox":[-1.72,0,600.92,452.67]}
+{"kind":"image","id":"im/ax0ny10z","slide":6,"name":"Imagem 13","bbox":[599.2,0,682.52,452.67]}
+{"kind":"notes","id":"nt/n8lqqu","slide":6,"text":""}

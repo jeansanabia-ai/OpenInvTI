@@ -1,0 +1,6 @@
+Fonte visual: GIA Ferroport - Programa Destaque 2026.pptx.
+Estrutura: 6 slides em 16:9, com master, layouts e identidade do Programa Destaque preservados.
+Alteração solicitada: substituir somente a assinatura Ferroport da capa e do encerramento pelo logotipo oficial fornecido pelo usuário.
+Tratamento: manter o arquivo oficial sem redesenho e aplicar um fundo azul-escuro discreto dentro da área já ocupada pela marca, garantindo contraste para a tipografia branca.
+Slides 2 a 5: preservação integral.
+

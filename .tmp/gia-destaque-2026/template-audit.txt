@@ -1,0 +1,15 @@
+Modelo analisado: Apresentação Programa Destaque 2026.pptx
+Formato: 16:9, 1280 x 720 px, 6 slides.
+Sistema visual: fundo branco com marca d'água geométrica, azul-ciano #00AFD7 e verde #78BE20, tipografia Aptos/Aptos Black e assinatura Destaque 2026.
+Estrutura reutilizável:
+- Slide 1: capa institucional com assinatura central e título de duas linhas no rodapé.
+- Slide 2: ficha do projeto com cinco campos editoriais.
+- Slide 3: dois blocos verticais para ações e resultados.
+- Slides 4 e 5: comparação visual em duas colunas.
+- Slide 6: encerramento institucional em colagem, preservado sem alterações.
+Regras de inserção:
+- Reescrever somente os textos explicitamente mapeados.
+- Preservar fundo, logotipos, assinatura, linhas e hierarquia mestre/layout/slide.
+- Substituir as caixas “Cole a sua imagem aqui” por imagens autênticas nos espaços visuais indicados pelo próprio modelo.
+- Não alterar o arquivo-fonte.
+

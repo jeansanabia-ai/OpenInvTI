@@ -1,0 +1,79 @@
+{
+  "sourcePptx": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\modelo-programa-destaque-2026.pptx",
+  "mapPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-frame-map.json",
+  "output": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter.pptx",
+  "outputBytes": 11015093,
+  "sourceSlideCount": 6,
+  "slideCount": 6,
+  "previewDir": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview",
+  "layoutDir": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout",
+  "contactSheet": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-contact-sheet.png",
+  "slides": [
+    {
+      "outputSlide": 1,
+      "sourceSlide": 1,
+      "narrativeRole": "capa do projeto",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 1,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview\\starter-slide-01.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-01.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout\\starter-slide-01.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-01.layout.json"
+    },
+    {
+      "outputSlide": 2,
+      "sourceSlide": 2,
+      "narrativeRole": "contexto objetivo e escopo",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 2,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview\\starter-slide-02.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-02.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout\\starter-slide-02.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-02.layout.json"
+    },
+    {
+      "outputSlide": 3,
+      "sourceSlide": 3,
+      "narrativeRole": "ações realizadas e resultados alcançados",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 5,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview\\starter-slide-03.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-03.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout\\starter-slide-03.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-03.layout.json"
+    },
+    {
+      "outputSlide": 4,
+      "sourceSlide": 4,
+      "narrativeRole": "comparação visual do processo antes e depois",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 6,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview\\starter-slide-04.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-04.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout\\starter-slide-04.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-04.layout.json"
+    },
+    {
+      "outputSlide": 5,
+      "sourceSlide": 5,
+      "narrativeRole": "demonstração visual do funcionamento",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 6,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview\\starter-slide-05.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-05.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout\\starter-slide-05.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-05.layout.json"
+    },
+    {
+      "outputSlide": 6,
+      "sourceSlide": 6,
+      "narrativeRole": "encerramento institucional preserve-only",
+      "reuseMode": "duplicate-slide",
+      "editTargetCount": 0,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-preview\\starter-slide-06.png",
+      "previewRelativePath": "template-starter-preview/starter-slide-06.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-starter-layout\\starter-slide-06.layout.json",
+      "layoutRelativePath": "template-starter-layout/starter-slide-06.layout.json"
+    }
+  ]
+}

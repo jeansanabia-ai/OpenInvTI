@@ -1,0 +1,4 @@
+Slide 4: as caixas de texto de imagem foram substituídas por uma captura real da planilha atual e uma tela real do WebApp. As imagens ocupam as zonas amplas previstas em cada coluna, mantendo títulos, divisor e fundo do modelo.
+Slide 5: as caixas de texto de imagem foram substituídas por dois quadros autênticos extraídos do vídeo fornecido. O enquadramento foi ajustado apenas para preservar legibilidade e proporção vertical.
+Nenhuma outra alteração estrutural intencional foi realizada.
+

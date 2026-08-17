@@ -2,6 +2,14 @@
 
 Todas as mudanças notáveis serão documentadas neste arquivo.
 
+## [1.8.4] - 2026-08-17 (PATCH — fix botão Retomar na câmera + Digitar manualmente)
+
+### 🐛 Botão "Retomar inventário" não respondia na câmera
+Em alguns Androids o `click` era engolido durante o loop de detecção de código de barras. O handler agora escuta `pointerup` + `touchend` + `click` com `preventDefault` e flag anti-duplo-disparo. Z-index dos controles reforçado (30).
+
+### ⌨️ Novo botão "Digitar manualmente" na câmera
+Quando o código de barras não lê (etiqueta danificada, reflexo, distância), o novo botão flutuante acima do obturador fecha a câmera e **leva direto pro campo de patrimônio com foco automático**. Também removida uma linha duplicada do botão camClose no HTML (corrupção antiga).
+
 ## [1.8.3] - 2026-07-15 (PATCH — ícones SVG no topo + modal Análise repaginado)
 
 ### 🎨 Ícones do topo agora são SVG limpos

@@ -10,7 +10,7 @@
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-  <link rel="stylesheet" href="style.css?v=1.8.3" />
+  <link rel="stylesheet" href="style.css?v=1.8.4" />
   <title>OpenInvTI - Inventário de TI</title>
   <!-- v1.2.7: bootstrap GARANTIDO dos botões de setup — funciona mesmo se app.js falhar -->
   <script>
@@ -62,7 +62,7 @@
         </button>
         <div>
           <h1 id="topTitle">OpenInvTI</h1>
-          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.8.3</div>
+          <div class="sub" id="topSub">Gestão de Ativos de TI · v1.8.4</div>
         </div>
       </div>
       <div class="topbar-actions">
@@ -614,12 +614,13 @@
       </div>
       <div class="cam-controls-top">
         <button class="cam-btn-back" id="camClose" aria-label="Voltar ao inventário" title="Voltar ao inventário">
-        <button class="cam-btn-back" id="camClose" aria-label="Voltar ao inventário" title="Voltar ao inventário">
           <span class="cam-btn-back-arrow">←</span>
           <span class="cam-btn-back-text">Retomar inventário</span>
         </button>
         <button class="cam-btn-icon" id="camTorch" aria-label="Lanterna" title="Lanterna" style="display:none">⚡</button>
       </div>
+      <!-- v1.8.4: fallback quando o código não lê — digitar manualmente -->
+      <button class="cam-btn-manual" id="camManual" aria-label="Digitar manualmente">⌨️ Digitar manualmente</button>
       <div class="cam-controls-bottom">
         <div class="cam-zoom-group" id="camZoomGroup" style="display:none">
           <button class="cam-btn-zoom" id="camZoomOut" aria-label="Reduzir zoom">−</button>
@@ -648,7 +649,7 @@
         <div class="side-menu-header-icon">📋</div>
         <div class="side-menu-header-info">
           <h4>OpenInvTI</h4>
-          <p>Gestão de Ativos de TI · v1.8.3</p>
+          <p>Gestão de Ativos de TI · v1.8.4</p>
         </div>
       </div>
       <div class="side-menu-list">
@@ -694,6 +695,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-  <script src="app.js?v=1.8.3"></script>
+  <script src="app.js?v=1.8.4"></script>
 </body>
 </html>

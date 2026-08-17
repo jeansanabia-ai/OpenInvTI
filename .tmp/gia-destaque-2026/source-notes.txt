@@ -1,0 +1,12 @@
+Fontes fornecidas pelo usuário:
+- C:\Users\jean.sanabia\OneDrive - FERROPORT\Documentos\Programa Destaque\Apresentação Programa Destaque 2026.pptx — modelo visual oficial.
+- C:\OpenInvTI\LinkedIn\Video_app.mp4 — demonstração do protótipo; quadros autênticos extraídos para o slide 5.
+- C:\OpenInvTI\LinkedIn\Tela_inicial_2.jpeg — tela inicial do protótipo.
+- C:\OpenInvTI\LinkedIn\Tela_app.jpeg — tela de ativos por usuário.
+- C:\OpenInvTI\LinkedIn\Tela_app_2.jpeg — resumo e exportação.
+- C:\OpenInvTI\LinkedIn\Tela_app_3.jpeg — compartilhamento do arquivo.
+- C:\OpenInvTI\LinkedIn\Tela_boas_vindas.jpeg — configuração inicial.
+- C:\Users\jean.sanabia\Downloads\Planilha de Inventário 2025.xlsx — base atual; a visualização resumida sem dados pessoais foi usada no slide 4.
+- Repositório local C:\OpenInvTI — funcionalidades e estágio do protótipo.
+Não foram usadas pesquisas ou imagens externas.
+

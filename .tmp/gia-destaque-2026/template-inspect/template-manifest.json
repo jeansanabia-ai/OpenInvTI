@@ -1,0 +1,173 @@
+{
+  "sourcePptx": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\modelo-programa-destaque-2026.pptx",
+  "workspace": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026",
+  "outDir": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect",
+  "generatedAt": "2026-08-14T18:18:52.698Z",
+  "slideCount": 6,
+  "slideArtifacts": [
+    {
+      "slide": 1,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\source-slides\\source-slide-01.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-01.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\layouts\\source-slide-01.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-01.layout.json"
+    },
+    {
+      "slide": 2,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\source-slides\\source-slide-02.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-02.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\layouts\\source-slide-02.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-02.layout.json"
+    },
+    {
+      "slide": 3,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\source-slides\\source-slide-03.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-03.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\layouts\\source-slide-03.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-03.layout.json"
+    },
+    {
+      "slide": 4,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\source-slides\\source-slide-04.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-04.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\layouts\\source-slide-04.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-04.layout.json"
+    },
+    {
+      "slide": 5,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\source-slides\\source-slide-05.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-05.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\layouts\\source-slide-05.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-05.layout.json"
+    },
+    {
+      "slide": 6,
+      "previewPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\source-slides\\source-slide-06.png",
+      "previewRelativePath": "template-inspect/source-slides/source-slide-06.png",
+      "layoutPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\layouts\\source-slide-06.layout.json",
+      "layoutRelativePath": "template-inspect/layouts/source-slide-06.layout.json"
+    }
+  ],
+  "inspectPath": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\template-inspect.ndjson",
+  "inspectRelativePath": "template-inspect/template-inspect.ndjson",
+  "inspectTruncated": false,
+  "inspectMetadata": {
+    "revision": "9isp3v",
+    "target": {
+      "id": "pr/9kjp7p"
+    },
+    "kind": {
+      "requested": "slide,textbox,shape,image,table,chart",
+      "tokens": [
+        "slide",
+        "textbox",
+        "shape",
+        "image",
+        "table",
+        "chart"
+      ]
+    },
+    "include": {
+      "tokens": []
+    },
+    "exclude": {
+      "tokens": []
+    },
+    "notices": []
+  },
+  "extractedMedia": [
+    {
+      "entry": "ppt/media/image1.png",
+      "path": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\assets\\ppt\\media\\image1.png",
+      "relativePath": "template-inspect/assets/ppt/media/image1.png",
+      "bytes": 38262
+    },
+    {
+      "entry": "ppt/media/image2.svg",
+      "path": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\assets\\ppt\\media\\image2.svg",
+      "relativePath": "template-inspect/assets/ppt/media/image2.svg",
+      "bytes": 7813
+    },
+    {
+      "entry": "ppt/media/image3.png",
+      "path": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\assets\\ppt\\media\\image3.png",
+      "relativePath": "template-inspect/assets/ppt/media/image3.png",
+      "bytes": 95181
+    },
+    {
+      "entry": "ppt/media/image4.png",
+      "path": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\assets\\ppt\\media\\image4.png",
+      "relativePath": "template-inspect/assets/ppt/media/image4.png",
+      "bytes": 5288940
+    },
+    {
+      "entry": "ppt/media/image5.png",
+      "path": "C:\\OpenInvTI\\.tmp\\gia-destaque-2026\\template-inspect\\assets\\ppt\\media\\image5.png",
+      "relativePath": "template-inspect/assets/ppt/media/image5.png",
+      "bytes": 5569778
+    }
+  ],
+  "fonts": [
+    "+mj-cs",
+    "+mj-ea",
+    "+mj-lt",
+    "+mn-cs",
+    "+mn-ea",
+    "+mn-lt",
+    "Angsana New",
+    "Aptos",
+    "Aptos Black",
+    "Aptos Display",
+    "Arial",
+    "Cordia New",
+    "DaunPenh",
+    "DokChampa",
+    "Ebrima",
+    "Estrangelo Edessa",
+    "Euphemia",
+    "Gautami",
+    "Gotham",
+    "Gotham Light",
+    "Iskoola Pota",
+    "Javanese Text",
+    "Kalinga",
+    "Kartika",
+    "Latha",
+    "Leelawadee UI",
+    "MV Boli",
+    "Mangal",
+    "Microsoft Himalaya",
+    "Microsoft JhengHei",
+    "Microsoft New Tai Lue",
+    "Microsoft Tai Le",
+    "Microsoft Uighur",
+    "Microsoft Yi Baiti",
+    "Mongolian Baiti",
+    "MoolBoran",
+    "Myanmar Text",
+    "Nirmala UI",
+    "Nyala",
+    "Phagspa",
+    "Plantagenet Cherokee",
+    "Raavi",
+    "Segoe UI",
+    "Shruti",
+    "Sylfaen",
+    "Times New Roman",
+    "Tunga",
+    "Verdana",
+    "Vrinda",
+    "新細明體",
+    "游ゴシック",
+    "游ゴシック Light",
+    "等线",
+    "等线 Light",
+    "맑은 고딕"
+  ],
+  "packageParts": {
+    "mediaCount": 5,
+    "slideXmlCount": 6,
+    "chartCount": 0,
+    "tableSlideCount": 0
+  }
+}

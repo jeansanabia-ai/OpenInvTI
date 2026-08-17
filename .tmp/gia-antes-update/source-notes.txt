@@ -1,0 +1,4 @@
+Imagem “antes-prancheta-excel.png”: gerada com a ferramenta integrada de geração de imagens em 14/08/2026.
+Prompt resumido: cena corporativa fotorrealista em formato horizontal, com prancheta e anotações à esquerda e notebook com planilha de inventário no Excel à direita; sem pessoas, dados pessoais ou nomes de empresas.
+Apresentação-base: C:\OpenInvTI\GIA Ferroport - Programa Destaque 2026 - Logo Oficial.pptx.
+

@@ -1,0 +1,13 @@
+{
+  "status": "pass",
+  "checkedAt": "2026-08-14T18:39:37.085Z",
+  "workspace": "C:\\OpenInvTI\\.tmp\\gia-antes-update",
+  "finalPptx": "C:\\OpenInvTI\\GIA Ferroport - Programa Destaque 2026 - Antes Atualizado.pptx",
+  "starterPptx": "C:\\OpenInvTI\\.tmp\\gia-antes-update\\template-starter.pptx",
+  "mapPath": "C:\\OpenInvTI\\.tmp\\gia-antes-update\\template-frame-map.json",
+  "starterLayoutDir": "C:\\OpenInvTI\\.tmp\\gia-logo-update\\final-layout\\final",
+  "finalLayoutDir": "C:\\OpenInvTI\\.tmp\\gia-antes-update\\final-layout\\final",
+  "editDir": "C:\\OpenInvTI\\.tmp\\gia-antes-update",
+  "issueCount": 0,
+  "issues": []
+}

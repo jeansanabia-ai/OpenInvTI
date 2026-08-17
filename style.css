@@ -717,6 +717,26 @@ body {
 .an-user-badge { color: #67E8F9; font-size: 12px; font-weight: 700; flex-shrink: 0; }
 .an-user-meta { color: #94A3B8; font-size: 11px; flex-shrink: 0; }
 
+/* v1.8.4: botão Digitar manualmente na câmera + z-index reforçado */
+.cam-controls-top { z-index: 30; }
+.cam-btn-manual {
+  position: absolute;
+  bottom: 118px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: rgba(15, 23, 42, 0.85);
+  color: #E2E8F0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 22px;
+  padding: 11px 20px;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: inherit;
+}
+.cam-btn-manual:active { background: rgba(6, 182, 212, 0.35); transform: translateX(-50%) scale(0.97); }
+
 html.light-mode body {
   background: #F5F7FA;
   color: #0d1424;

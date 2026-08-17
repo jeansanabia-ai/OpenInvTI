@@ -1,0 +1,72 @@
+{
+  "outputSlides": [
+    {
+      "outputSlide": 1,
+      "sourceSlide": 1,
+      "narrativeRole": "capa do projeto",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        { "shapeId": "sh/5sfepcfe", "action": "rewrite", "purpose": "nome e proposta do projeto" }
+      ]
+    },
+    {
+      "outputSlide": 2,
+      "sourceSlide": 2,
+      "narrativeRole": "contexto objetivo e escopo",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        { "shapeId": "sh/wjy9sry9", "action": "rewrite", "purpose": "cabeçalho do projeto" },
+        { "shapeId": "sh/9wnqhczy", "action": "rewrite", "purpose": "ficha do projeto" }
+      ]
+    },
+    {
+      "outputSlide": 3,
+      "sourceSlide": 3,
+      "narrativeRole": "ações realizadas e resultados alcançados",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        { "shapeId": "sh/i9w3u58v", "action": "rewrite", "purpose": "cabeçalho do projeto" },
+        { "shapeId": "sh/a5c3ql8z", "action": "rewrite", "purpose": "título de ações" },
+        { "shapeId": "sh/x8nml0ra", "action": "rewrite", "purpose": "ações realizadas" },
+        { "shapeId": "sh/ja54na9g", "action": "rewrite", "purpose": "título de resultados" },
+        { "shapeId": "sh/m1c3mlsn", "action": "rewrite", "purpose": "resultados alcançados" }
+      ]
+    },
+    {
+      "outputSlide": 4,
+      "sourceSlide": 4,
+      "narrativeRole": "comparação visual do processo antes e depois",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        { "shapeId": "sh/rm1k7yt4", "action": "rewrite", "purpose": "cabeçalho do projeto" },
+        { "shapeId": "sh/5cva1cfq", "action": "rewrite", "purpose": "título da comparação" },
+        { "shapeId": "sh/ql8jytsj", "action": "rewrite", "purpose": "rótulo antes" },
+        { "shapeId": "sh/doj29oba", "action": "rewrite", "purpose": "rótulo depois" },
+        { "shapeId": "sh/x8vaxsfe", "action": "replace", "purpose": "imagem da planilha atual" },
+        { "shapeId": "sh/a5kr2xg3", "action": "replace", "purpose": "imagem do WebApp" }
+      ]
+    },
+    {
+      "outputSlide": 5,
+      "sourceSlide": 5,
+      "narrativeRole": "demonstração visual do funcionamento",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        { "shapeId": "sh/z2tcnm5s", "action": "rewrite", "purpose": "cabeçalho do projeto" },
+        { "shapeId": "sh/x4vedgvm", "action": "rewrite", "purpose": "título da demonstração" },
+        { "shapeId": "sh/yhkbe1o7", "action": "rewrite", "purpose": "rótulo captura" },
+        { "shapeId": "sh/l4bupwny", "action": "rewrite", "purpose": "rótulo registro" },
+        { "shapeId": "sh/58vehgvy", "action": "replace", "purpose": "quadro de captura do vídeo" },
+        { "shapeId": "sh/i54fmlc7", "action": "replace", "purpose": "quadro de registro do vídeo" }
+      ]
+    },
+    {
+      "outputSlide": 6,
+      "sourceSlide": 6,
+      "narrativeRole": "encerramento institucional preserve-only",
+      "reuseMode": "duplicate-slide",
+      "editTargets": []
+    }
+  ],
+  "omittedSourceSlides": []
+}

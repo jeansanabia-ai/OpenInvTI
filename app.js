@@ -19,7 +19,7 @@ const GROQ_VISION_MODELS = [
 ];
 
 // v1.0.13: Versão do app — exibida no subtítulo do header pra rastreabilidade
-const APP_VERSION = '1.8.3';
+const APP_VERSION = '1.8.4';
 const APP_TAGLINE = 'Gestão de Ativos de TI';
 
 // ============================================================
@@ -2904,6 +2904,15 @@ async function lerCodigoBarras() {
   try {
     result = await openCustomCamera('barcode', { mode: 'barcode' });
   } catch (e) { result = null; }
+  if (typeof result === 'string' && result.indexOf('manual:') === 0) {
+    // v1.8.4: usuário optou por digitar — foca o campo de patrimônio no wizard
+    toast('Digite o patrimônio manualmente.', 3000);
+    setTimeout(() => {
+      const campo = document.getElementById('wPatrimonio') || document.getElementById('wSerie');
+      if (campo) { campo.focus(); campo.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }, 250);
+    return null;
+  }
   if (typeof result === 'string' && result.indexOf('auto:') === 0) {
     const raw = result.substring(5);
     const normalizado = normalizarPatrimonio(raw);
@@ -3990,11 +3999,37 @@ window.addEventListener('DOMContentLoaded', async () => {
     }, true);
   }
   // Botões da câmera customizada
-  if ($('camClose')) $('camClose').onclick = () => {
-    const rejectFn = CAM.reject;
-    closeCustomCamera();
-    if (rejectFn) rejectFn(new Error('Cancelado'));
-  };
+  // v1.8.4: handler robusto — alguns Androids engolem o click durante o loop de detecção.
+  // Usamos pointerup + touchend + click com preventDefault e flag anti-duplo-disparo.
+  if ($('camClose')) {
+    const fecharCam = (e) => {
+      if (e && e.cancelable) e.preventDefault();
+      if (fecharCam._done) return;
+      fecharCam._done = true;
+      setTimeout(() => { fecharCam._done = false; }, 400);
+      const rejectFn = CAM.reject;
+      CAM.reject = null;
+      closeCustomCamera();
+      if (rejectFn) { try { rejectFn(new Error('Cancelado')); } catch (err) {} }
+    };
+    ['pointerup', 'touchend', 'click'].forEach(ev =>
+      $('camClose').addEventListener(ev, fecharCam, { passive: false }));
+  }
+  // v1.8.4: botão "Digitar manualmente" — fecha câmera e sinaliza preenchimento manual
+  if ($('camManual')) {
+    const irManual = (e) => {
+      if (e && e.cancelable) e.preventDefault();
+      if (irManual._done) return;
+      irManual._done = true;
+      setTimeout(() => { irManual._done = false; }, 400);
+      const resolveFn = CAM.resolve;
+      CAM.resolve = null; CAM.reject = null;
+      closeCustomCamera();
+      if (resolveFn) { try { resolveFn('manual:'); } catch (err) {} }
+    };
+    ['pointerup', 'touchend', 'click'].forEach(ev =>
+      $('camManual').addEventListener(ev, irManual, { passive: false }));
+  }
   if ($('camCapture')) $('camCapture').onclick = () => camDoCapture();
   if ($('camTorch')) $('camTorch').onclick = () => camToggleTorch();
   if ($('camZoomIn')) $('camZoomIn').onclick = () => camApplyZoom(CAM.zoom + 0.5);

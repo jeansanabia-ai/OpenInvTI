@@ -1,0 +1,24 @@
+{
+  "outputSlides": [
+    { "outputSlide": 1, "sourceSlide": 1, "narrativeRole": "capa institucional", "reuseMode": "duplicate-slide", "editTargets": [] },
+    { "outputSlide": 2, "sourceSlide": 2, "narrativeRole": "contexto e objetivo", "reuseMode": "duplicate-slide", "editTargets": [] },
+    { "outputSlide": 3, "sourceSlide": 3, "narrativeRole": "ações e resultados", "reuseMode": "duplicate-slide", "editTargets": [] },
+    {
+      "outputSlide": 4,
+      "sourceSlide": 4,
+      "narrativeRole": "evolução do processo",
+      "reuseMode": "duplicate-slide",
+      "editTargets": [
+        {
+          "sourceElementId": "im/tcvm5gji",
+          "action": "replace",
+          "purpose": "representar o processo anterior com prancheta, anotações e planilha aberta no Excel"
+        }
+      ]
+    },
+    { "outputSlide": 5, "sourceSlide": 5, "narrativeRole": "demonstração do aplicativo", "reuseMode": "duplicate-slide", "editTargets": [] },
+    { "outputSlide": 6, "sourceSlide": 6, "narrativeRole": "encerramento institucional", "reuseMode": "duplicate-slide", "editTargets": [] }
+  ],
+  "omittedSourceSlides": []
+}
+
